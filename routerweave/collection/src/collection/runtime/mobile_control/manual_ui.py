@@ -23,7 +23,7 @@ from collection.runtime.registry.tasks import load_collection_tasks, RUNNABLE_ST
 
 LABELS = ("short_video", "long_video", "browsing", "messaging", "music",
           "live_stream", "gaming", "productivity", "background", "transition", "other", "unknown")
-SCREEN_STATES = {"亮屏使用": "on", "熄屏": "off", "不确定": "unknown"}
+SCREEN_STATES = {"Screen on": "on", "Screen off": "off", "Unknown": "unknown"}
 
 
 def timeline_event(controller, kind, label, at, **fields):
@@ -136,12 +136,12 @@ class ManualGroundTruthWindow:
         self.label = tk.StringVar(value="short_video")
         self.app = tk.StringVar()
         self.note = tk.StringVar()
-        self.screen_state = tk.StringVar(value="不确定")
+        self.screen_state = tk.StringVar(value="Unknown")
         self.tasks = {f"{t['platform_label']} · {t['title']}": t for t in load_collection_tasks()
                       if t['id'] == args.collection_task_id or
                       (not isinstance(root, ModePanel) and t['kind'] == 'iot' and t['category'] in EVENT_TIMINGS and t['configured_status'] in RUNNABLE_STATUSES)}
         self.task_choice = tk.StringVar(value=next((k for k, t in self.tasks.items() if t['id'] == args.collection_task_id), ""))
-        self.iot_mode = tk.StringVar(value="事件打点")
+        self.iot_mode = tk.StringVar(value="Event marking")
         self.protocol_hint = tk.StringVar()
         self.status = tk.StringVar(value="Idle")
         self.current = tk.StringVar(value="No active task")
@@ -166,7 +166,7 @@ class ManualGroundTruthWindow:
         ttk.Label(selection, text="Target").pack(side="left")
         self.task_input = ttk.Combobox(selection, textvariable=self.task_choice, values=tuple(self.tasks), state="readonly", width=67)
         self.task_input.pack(side="left", padx=10, fill="x", expand=True)
-        self.mode_input = ttk.Combobox(selection, textvariable=self.iot_mode, values=("事件打点", "连续观察"), state="disabled", width=12)
+        self.mode_input = ttk.Combobox(selection, textvariable=self.iot_mode, values=("Event marking", "Observation"), state="disabled", width=12)
         if not isinstance(root, ModePanel):
             self.mode_input.pack(side="right")
         self.task_input.bind("<<ComboboxSelected>>", self.select_task)
@@ -238,9 +238,9 @@ class ManualGroundTruthWindow:
         switches.pack(fill="x", pady=(0, 8))
         self.switch_button = ttk.Button(timing, text="Switch task", command=self.switch_segment, state="disabled")
         self.switch_button.pack(side="right", before=self.begin_button, padx=8)
-        self.transition_button = ttk.Button(switches, text="Transition", command=lambda: self.quick_segment("transition", "不确定"), state="disabled")
+        self.transition_button = ttk.Button(switches, text="Transition", command=lambda: self.quick_segment("transition", "Unknown"), state="disabled")
         self.transition_button.pack(side="left", padx=8)
-        self.idle_button = ttk.Button(switches, text="Background", command=lambda: self.quick_segment("background", "不确定"), state="disabled")
+        self.idle_button = ttk.Button(switches, text="Background", command=lambda: self.quick_segment("background", "Unknown"), state="disabled")
         self.idle_button.pack(side="left")
         self.current_label = ttk.Label(work, textvariable=self.current, wraplength=850, style='IoT.White.TLabel')
         self.current_label.pack(anchor="w", pady=(0, 4))
@@ -299,7 +299,7 @@ class ManualGroundTruthWindow:
         recording = bool(self.session and self.session.state == "recording" and not self.busy)
         active = bool(self.session and self.session.active)
         iot = self.selected_task().get("kind") == "iot"
-        marking = iot and self.iot_mode.get() == "事件打点"
+        marking = iot and self.iot_mode.get() == "Event marking"
         observation_only = self.selected_task().get("metadata", {}).get("manual_observation_only", False)
         self.capture_button.configure(state="disabled" if self.busy or recording else "normal",
                                       text="New capture" if self.session else "Start capture")
@@ -342,12 +342,12 @@ class ManualGroundTruthWindow:
             self.label_input.configure(state="readonly" if not self.busy and marking else "disabled")
             self.app_input.configure(state="disabled")
         if marking and (self.busy or (self.session and self.session.state != "recording")):
-            self.next_mark.set("正在连接或保存，暂不可打点" if self.busy else "本轮已结束，开始新一轮后重新计时")
+            self.next_mark.set("Connecting or saving. Event marking is paused." if self.busy else "Run complete. Start a new run to reset the timer.")
             self.next_mark_status.set("")
             self.next_mark_label.configure(foreground="#616b78")
         if marking and not self.busy and self.identity_resolver is not None and self.network_identity is None:
-            self.next_mark.set("设备尚未识别，暂不可打点")
-            self.next_mark_status.set("核对设备连接或 MAC 后，点击重新识别 IP。")
+            self.next_mark.set("Identify the device before marking an event.")
+            self.next_mark_status.set("Check the device connection or MAC address, then detect the IP again.")
             self.next_mark_label.configure(foreground="#616b78")
 
     def selected_task(self):
@@ -362,9 +362,9 @@ class ManualGroundTruthWindow:
         self.label_input.configure(values=labels)
         self.label.set("doorbell_press" if "doorbell_press" in labels else labels[0] if labels else "background_observation")
         if task.get("metadata", {}).get("manual_observation_only"):
-            self.iot_mode.set("连续观察")
+            self.iot_mode.set("Observation")
         elif _event is not None:
-            self.iot_mode.set("事件打点")
+            self.iot_mode.set("Event marking")
         self.app.set("")
         self.table.heading("app", text="Before / after" if iot else "App")
         self.table.heading("start", text="Marked at" if iot else "Start")
@@ -376,7 +376,7 @@ class ManualGroundTruthWindow:
 
     def select_mode(self, _event=None):
         task = self.selected_task()
-        marking = task.get("kind") == "iot" and self.iot_mode.get() == "事件打点"
+        marking = task.get("kind") == "iot" and self.iot_mode.get() == "Event marking"
         self.event_timing_panel.pack_forget()
         self.switches.pack_forget()
         if marking:
@@ -385,15 +385,15 @@ class ManualGroundTruthWindow:
             self.switches.pack(fill="x", pady=(0, 8), before=self.current_label)
         if task.get("kind") == "iot":
             pre, post = EVENT_TIMINGS[task["category"]]
-            if self.iot_mode.get() == "事件打点":
-                self.protocol_hint.set(f"每次打点保留前 {pre} 秒、后 {post} 秒流量；选好标签后按空格。编辑备注后按回车返回打点。\n记录你实施动作的时间，尚未验证传感器状态；clear 不会自动产生。")
-                self.next_mark.set(f"首次打点：采集就绪后至少等待 {pre} 秒")
-                self.next_mark_status.set(f"独立样本两次打点至少间隔 {pre + post} 秒；同一轮关联状态可随时打点。")
+            if self.iot_mode.get() == "Event marking":
+                self.protocol_hint.set(f"Each marker includes {pre} s before and {post} s after the event. Select a label and press Space. After editing a note, press Enter to resume marking.\nMark the time of your action. Sensor state is unverified. Mark clear events manually.")
+                self.next_mark.set(f"First marker: wait at least {pre} s after capture starts.")
+                self.next_mark_status.set(f"Allow at least {pre + post} s between independent markers. Mark related events whenever they occur.")
                 self.next_mark_label.configure(foreground="#135cc8")
             else:
-                self.protocol_hint.set("连续观察日常流量，直到你结束采集。不会自动把流量标成 motion、clear 或温湿度变化。")
+                self.protocol_hint.set("Record routine traffic until collection ends. Motion, clear, temperature, and humidity changes require separate labels.")
         else:
-            self.protocol_hint.set("选择行为标签，用开始、结束或切换按钮记录连续任务。")
+            self.protocol_hint.set("Choose an activity label. Use Start, End, or Switch to record continuous tasks.")
         self.update_buttons()
 
     def identify_device(self):
@@ -404,7 +404,7 @@ class ManualGroundTruthWindow:
             return
         self.network_identity = None
         self.ip.set("")
-        self.status.set("正在按设备 MAC 识别当前 IP…")
+        self.status.set("Looking up the IP address by device MAC…")
         router = RouterCaptureConfig("", self.args.router_host, self.args.router_user,
                                      self.args.router_interface, self.args.router_identity)
         def identified(result):
@@ -413,14 +413,14 @@ class ManualGroundTruthWindow:
             band = {"2.4G": "2.4 GHz", "5G": "5 GHz", "6G": "6 GHz"}.get(result["wifi_band"])
             if band:
                 self.band.set(band)
-            scope = f"网关 {result['proxy_device']}" if result["scope"] == "home_hub_proxy" else "设备"
-            self.status.set(f"已匹配{scope} IP {result['ip']} · MAC {result['mac']}。启动前会再次核对。")
+            scope = f"gateway {result['proxy_device']}" if result["scope"] == "home_hub_proxy" else "device"
+            self.status.set(f"Matched {scope}: IP {result['ip']}, MAC {result['mac']}. The address will be checked again before capture.")
             self.select_mode()
         self.run_worker(lambda: self.identity_resolver(task, router), identified)
 
     def press_space(self, event):
         at = timestamp()  # Capture the input boundary before filesystem writes or health checks.
-        if self.selected_task().get("kind") != "iot" or self.iot_mode.get() != "事件打点":
+        if self.selected_task().get("kind") != "iot" or self.iot_mode.get() != "Event marking":
             return
         if str(event.widget.winfo_class()) in {"Entry", "TEntry", "Text", "TCombobox", "Spinbox", "TSpinbox"}:
             return
@@ -448,17 +448,17 @@ class ManualGroundTruthWindow:
             self.last_mark_mono = at["monotonic"]
             self.refresh_rows()
             self.update_event_timing()
-            self.current.set(f"已记录 {self.label.get()} · {datetime.fromtimestamp(at['pc_epoch']):%H:%M:%S.%f}"[:-3]
-                             + "。可选择下一事件；按键长按只记一次。")
+            self.current.set(f"Recorded {self.label.get()} · {datetime.fromtimestamp(at['pc_epoch']):%H:%M:%S.%f}"[:-3]
+                             + ". Select the next event. Holding a key records one event.")
         except Exception as exc:
-            self.status.set("打点未保存：" + str(exc))
+            self.status.set("Event marker not saved: " + str(exc))
 
     def start_capture(self):
         if self.busy or (self.session and self.session.state == "recording"):
             return
         if self.review_window and self.review_window.root.winfo_exists():
             if self.review_window.busy:
-                self.status.set("数据正在导出，请完成后开始下一轮。")
+                self.status.set("Export in progress. Wait before starting the next run.")
                 return
             self.review_window.root.destroy()
             self.review_window = None
@@ -467,14 +467,14 @@ class ManualGroundTruthWindow:
         try:
             router.validate()
         except ValueError as exc:
-            messagebox.showerror("请检查采集目标 IP", str(exc), parent=self.root)
+            messagebox.showerror("Check the target IP address", str(exc), parent=self.root)
             return
         task = self.selected_task()
         prefix = "iot-manual-" if task.get("kind") == "iot" else "ios-manual-"
         run_root = Path(self.args.out) / datetime.now().strftime(prefix + "%Y%m%d-%H%M%S-%f")
         self.session = self.session_factory(run_root, router, task["id"])
         if task.get("kind") == "iot":
-            self.session.configure_iot(observation=self.iot_mode.get() == "连续观察")
+            self.session.configure_iot(observation=self.iot_mode.get() == "Observation")
         self.space_down, self.last_mark_mono = False, -1.0
         self.ready_notice = None
         self.table.delete(*self.table.get_children())
@@ -503,7 +503,7 @@ class ManualGroundTruthWindow:
         self.capture_info.set(f"Clock uncertainty ±{clock['uncertainty_seconds']:.2f}s")
         self.open_button.configure(state="normal")
         if self.session.protocol:
-            self.status.set("连续抓包已启动。" + ("实施动作时按空格打点。" if self.iot_mode.get() == "事件打点" else "正在观察日常上报。"))
+            self.status.set("Continuous capture started. " + ("Press Space when you perform the action." if self.iot_mode.get() == "Event marking" else "Observing routine traffic."))
             self.root.focus_set()
             self.update_event_timing()
 
@@ -579,7 +579,7 @@ class ManualGroundTruthWindow:
         if self.session and not choose:
             path = self.session.root
         else:
-            path = filedialog.askdirectory(parent=self.root, title="选择已结束的采集目录", initialdir=self.args.out)
+            path = filedialog.askdirectory(parent=self.root, title="Select a completed collection directory", initialdir=self.args.out)
         if path:
             try:
                 from .manual_review_ui import ManualReviewWindow
@@ -587,15 +587,15 @@ class ManualGroundTruthWindow:
                     self.review_window.root.destroy()
                 self.review_window = ManualReviewWindow(self.root, path)
             except Exception as exc:
-                messagebox.showerror("无法打开复核", str(exc), parent=self.root)
+                messagebox.showerror("Cannot open review", str(exc), parent=self.root)
 
     def refresh_rows(self):
         self.table.delete(*self.table.get_children())
         if self.session.protocol:
             for row in event_windows(self.session.events, self.session.manifest, now=timestamp()):
-                status = "完整" if row["input_eligible"] else ("前窗不足" if not row["complete_pre"] else "等待后窗")
+                status = "Complete" if row["input_eligible"] else ("Incomplete pre-window" if not row["complete_pre"] else "Waiting for post-window")
                 if self.session.state in {"complete", "failed"} and not row["complete_post"]:
-                    status = "后窗不足"
+                    status = "Incomplete post-window"
                 self.table.insert("", "end", values=(row["label"], f"{row['pre_seconds']}s / {row['post_seconds']}s",
                     datetime.fromtimestamp(row["pc_event_epoch"]).strftime("%H:%M:%S.%f")[:-3],
                     datetime.fromtimestamp(row["pc_end_epoch"]).strftime("%H:%M:%S.%f")[:-3], status))
@@ -603,7 +603,7 @@ class ManualGroundTruthWindow:
         for row in self.session.rows:
             local = lambda key: datetime.fromtimestamp(row[key]).strftime("%H:%M:%S.%f")[:-3]
             self.table.insert("", "end", values=(row["label"], row["app"], local("pc_start_epoch"),
-                              local("pc_end_epoch"), f"{row['duration_seconds']:.1f} 秒"))
+                              local("pc_end_epoch"), f"{row['duration_seconds']:.1f} s"))
         if self.table.get_children():
             self.table.see(self.table.get_children()[-1])
 
@@ -631,7 +631,7 @@ class ManualGroundTruthWindow:
         if self.session.protocol:
             count = validation.metrics.get("event_count", 0)
             complete = validation.metrics.get("complete_event_windows", 0)
-            self.current.set(f"已保存 {count} 个事件，{complete} 个前后窗口完整。原始连续流量已保留。")
+            self.current.set(f"Saved {count} events with {complete} complete windows. The continuous capture was retained.")
         if validation.collection_ready:
             self.status.set("Saved · Capture checks passed")
         else:
@@ -659,7 +659,7 @@ class ManualGroundTruthWindow:
         now = datetime.now().astimezone()
         offset = now.strftime("%z")
         zone = offset[:3] + ":" + offset[3:]
-        self.clock_date.set(f"电脑本地时间 · {now:%Y-%m-%d} · UTC{zone}")
+        self.clock_date.set(f"Host local time · {now:%Y-%m-%d} · UTC{zone}")
         self.clock.set(now.strftime("%H:%M:%S"))
 
     def show_duration(self, seconds):
@@ -673,22 +673,22 @@ class ManualGroundTruthWindow:
         if schedule is None:
             return
         due = datetime.fromtimestamp(schedule["next_pc_epoch"])
-        prefix = "首次打点" if schedule["first"] else "下一次独立打点"
-        self.next_mark.set(f"{prefix}：{due:%m-%d %H:%M:%S}")
+        prefix = "First marker" if schedule["first"] else "Next independent marker"
+        self.next_mark.set(f"{prefix}: {due:%m-%d %H:%M:%S}")
         remaining, tail = schedule["remaining_seconds"], schedule["post_remaining_seconds"]
         if remaining:
-            phase = "保留上一事件后窗" if schedule["phase"] == "post" else "准备下一事件前窗"
-            self.next_mark_status.set(f"还需 {remaining // 60:02d}:{remaining % 60:02d} · {phase}。关联状态发生时仍可立即打点。")
+            phase = "Recording previous post-window" if schedule["phase"] == "post" else "Recording next pre-window"
+            self.next_mark_status.set(f"{remaining // 60:02d}:{remaining % 60:02d} remaining · {phase}. Related events can be marked immediately.")
             self.next_mark_label.configure(foreground="#9a5700")
         else:
-            self.next_mark_status.set("时间已到 · 设备恢复并准备好后，可实施下一次动作并按空格。")
+            self.next_mark_status.set("Ready. Once the device has recovered, perform the next action and press Space.")
             self.next_mark_label.configure(foreground="#16743c")
             notice = (id(self.session), schedule["next_monotonic"])
             if notice != self.ready_notice:
                 self.ready_notice = notice
                 self.root.bell()
-        self.timer.set(f"结束采集前还需 {tail} 秒" if tail else
-                       ("末次后窗已完整 · 可以结束采集" if not schedule["first"] else "等待首次事件"))
+        self.timer.set(f"Wait {tail} s before ending collection" if tail else
+                       ("Last post-window complete. Collection can end." if not schedule["first"] else "Waiting for first event"))
 
     def tick(self):
         try:
@@ -699,9 +699,9 @@ class ManualGroundTruthWindow:
             self.busy = False
             if error:
                 if self.session and self.session.state == "failed" and self.session.capture is None:
-                    self.status.set("启动失败，本轮尚未开始抓包或记录任务：" + error)
+                    self.status.set("Start failed before packet capture or task recording: " + error)
                 else:
-                    self.status.set("操作未完成，已写入的文件会保留：" + error)
+                    self.status.set("Operation incomplete. Existing files were retained: " + error)
                 if self.session and self.session.state == "stopping":
                     self.session.state = "failed"
                 self.closing = False
@@ -1061,10 +1061,7 @@ class IoTMarkerWindow:
             except Exception as exc:
                 import traceback
                 traceback.print_exc()
-                detail = str(exc)
-                if any('\u4e00' <= character <= '\u9fff' for character in detail):
-                    detail = 'Device unavailable or not yet matched. Connect it to the capture Wi-Fi and check its saved identity. Technical details were logged.'
-                self.messages.put((None, detail, None))
+                self.messages.put((None, str(exc), None))
         threading.Thread(target=run, daemon=False).start()
 
     def begin_baseline(self, _result=None):

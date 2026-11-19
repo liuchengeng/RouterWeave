@@ -16,6 +16,7 @@ import time
 PROFILE = "uncleared_background_v1"
 CONTINUATION_PROFILE = "retained_background_v2"
 ALIASES = {"qq_music": "qqmusic", "netease_music": "netease"}
+# The v1 recipe stores the original instruction text and is compared to archived runs.
 SOURCES = (
     ("music", "qqmusic", "netease", "播放歌曲，结束后暂停并退到后台"),
     ("browsing", "baidu", "csdn", "打开内容，阅读和滚动，保留页面退到后台"),
@@ -23,6 +24,13 @@ SOURCES = (
     ("long_video", "bilibili", "iqiyi", "播放视频，结束后暂停并退到后台"),
     ("live_stream", "douyu", "huya", "观看直播，正常退出直播间后退到后台"),
 )
+OPERATOR_INSTRUCTIONS = {
+    "music": "Play a song, pause playback, and move the app to the background.",
+    "browsing": "Open content, read and scroll, and leave the page open in the background.",
+    "short_video": "Play a video and swipe once, then background the app and verify that playback stops.",
+    "long_video": "Play a video, pause playback, and move the app to the background.",
+    "live_stream": "Watch a live stream, leave the stream, and move the app to the background.",
+}
 
 
 def environment_recipe(task: dict | None, target: str, *, profile: str | None = None) -> dict | None:
@@ -97,24 +105,24 @@ def prepare_environment(root: Path, recipe: dict, *, input_fn=None, clock=None, 
                 emit("experiment_apps_reset", result=result)
                 if not _reset_verified(result, recipe["reset_packages"]):
                     raise RuntimeError("Experiment app reset failed independent verification")
-            input_fn("后台准备：不清后台、不清缓存；登录问题先处理。按回车开始（Ctrl+C 取消）。")
+            input_fn("Preserve background apps and caches. Resolve login issues first. Press Enter to begin or Ctrl+C to cancel.")
             for index, step in enumerate(recipe["steps"]):
-                input_fn(f"[{index + 1}/5] 打开 {step['app']}：{step['instruction']}。"
-                         "内容实际可用后按回车开始计时。")
+                input_fn(f"[{index + 1}/5] Open {step['app']}. {OPERATOR_INSTRUCTIONS[step['category']]} "
+                         "Press Enter to start timing when the content is available.")
                 started = emit("content_started", index=index, app=step["app"])
                 while True:
-                    answer = input_fn("正常使用至少 30 秒，完成上述退出动作；确认媒体停止、"
-                                      "没有清理应用后输入 done（Ctrl+C 取消）：")
+                    answer = input_fn("Use the app normally for at least 30 seconds and complete the exit steps. "
+                                      "Confirm playback has stopped and the app was not cleared. Enter done or press Ctrl+C to cancel: ")
                     if answer.strip().lower() != "done":
                         continue
                     if clock() - started < step["seconds"]:
-                        print("不足 30 秒；继续正常使用后再确认。", flush=True)
+                        print("Fewer than 30 seconds elapsed. Continue using the app before confirming.", flush=True)
                         continue
                     break
                 emit("backgrounded", index=index, app=step["app"],
                      operator_confirmed=True, media_stopped=True, operator_kind=operator_kind)
-            answer = input_fn("五项准备已完成。保留这些应用；Windows 必须保留准备页，"
-                              "使用另一个目标标签。输入 ready 开始原前台任务：")
+            answer = input_fn("Preparation complete. Leave all five apps in place. On Windows, keep the preparation tabs open "
+                              "and use a separate target tab. Enter ready to start the foreground task: ")
             if answer.strip().lower() != "ready":
                 raise ValueError("Background retention was not confirmed")
             emit("preparation_finished", background_retained=True)
@@ -397,7 +405,7 @@ def continue_environment(root: Path, recipe: dict, source: Path, *, serial: str,
         raise ValueError("Continuation source belongs to a different phone")
     if windows:
         checkpoint = (checkpoint_reader or _windows_checkpoint)()
-        answer = (input_fn or input)("新样本边界：仅确认当前准备标签仍打开且媒体已停止（不声明历史未变）。观察后输入 quiet：")
+        answer = (input_fn or input)("At the sample boundary, verify that the preparation tabs are open and playback has stopped. Enter quiet to confirm the current state only: ")
         if answer.strip() != "quiet":
             raise ValueError("Current stopped-media observation was not confirmed")
         checkpoint["media_stopped_operator_observed"] = True
@@ -418,7 +426,7 @@ def continue_environment(root: Path, recipe: dict, source: Path, *, serial: str,
         # Retain the observation before prompting so an agent can inspect it.
         with (Path(root) / "ios_boundary_snapshot.json").open("x", encoding="utf-8") as stream:
             json.dump(checkpoint, stream, ensure_ascii=False, indent=2)
-        answer = (input_fn or input)("新样本边界：检查当前媒体已停止；不重开后台应用、不声明历史连续性。观察后输入 quiet：")
+        answer = (input_fn or input)("At the sample boundary, verify that playback has stopped without reopening background apps. Enter quiet to confirm the current state only: ")
         if answer.strip() != "quiet":
             raise ValueError("Current stopped-media observation was not confirmed")
         checkpoint["media_stopped_operator_observed"] = True
@@ -504,8 +512,8 @@ def resume_environment(root: Path, recipe: dict, source: Path, *, serial: str,
         raise ValueError("Environment recovery currently requires a verified Android device")
     provenance = recovery_source(source, recipe)
     input_fn = input if input_fn is None else input_fn
-    answer = input_fn(f"沿用 {provenance['preparation_run']}。确认同一手机 {serial}、失败后无人清后台、"
-                      "重启或改变背景应用；目标应用恢复操作另留证据。输入 preserved（不确定则取消）：")
+    answer = input_fn(f"Reusing {provenance['preparation_run']}. Confirm the same phone {serial} was used and that nobody cleared background apps, "
+                      "rebooted, or changed those apps after the failure. Record target-app recovery separately. Enter preserved to confirm or cancel if uncertain: ")
     if answer.strip() != "preserved":
         raise ValueError("Environment continuity was not confirmed")
     if checkpoint_reader is None:
@@ -580,8 +588,8 @@ def _resume_windows_environment(root, recipe, source, input_fn, checkpoint_reade
     if _windows_request(manifest) != provenance["foreground_request"]:
         raise ValueError("Windows recovery changed the original foreground request")
     input_fn = input if input_fn is None else input_fn
-    answer = input_fn("沿用原五项后台准备。确认同一电脑、未重启或关闭准备页、所有媒体已停止；"
-                      "目标使用独立前台标签。输入 preserved（不确定则取消）：")
+    answer = input_fn("Reusing the five-app preparation. Confirm the same PC was used, it was not rebooted, the preparation tabs stayed open, and all playback stopped. "
+                      "Use a separate foreground tab for the target. Enter preserved to confirm or cancel if uncertain: ")
     if answer.strip() != "preserved":
         raise ValueError("Windows environment continuity was not confirmed")
     checkpoint = (checkpoint_reader or _windows_checkpoint)()

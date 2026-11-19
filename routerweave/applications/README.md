@@ -1,4 +1,4 @@
-# RouterWeave case studies
+# Routerweave case studies
 
 This module turns activity predictions into two application outputs. Screen Time publishes device activity intervals and evaluates their durations and switches. Appliance energy estimation reconstructs appliance states from directional operations and integrates a power profile over those states.
 

@@ -1,4 +1,4 @@
-# RouterWeave shared traffic processing
+# Routerweave shared traffic processing
 
 Use Python 3.10 or newer. Run the commands from the directory containing this README. The module uses only the Python standard library.
 

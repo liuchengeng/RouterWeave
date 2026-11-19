@@ -43,29 +43,29 @@ def bounds(root):
     ready = next(row for row in events if row["event"] == "capture_ready")
     end = next((row for row in events if row["event"] == "capture_end_requested"), events[-1])
     if events[-1]["event"] != "capture_stopped" or end["pc_epoch"] <= ready["pc_epoch"]:
-        raise ValueError("本轮尚未完整结束，无法复核或评估。")
+        raise ValueError("Finish collection before reviewing or scoring this run.")
     return ready["pc_epoch"], end["pc_epoch"], manifest
 
 
 def validate_timeline(rows, start, end):
     cursor = start
     if not rows:
-        raise ValueError("时间线为空")
+        raise ValueError("The timeline is empty.")
     for row in rows:
         a, b = row["pc_start_epoch"], row["pc_end_epoch"]
         if not all(math.isfinite(x) for x in (a, b)) or abs(a - cursor) > 1e-6 or b <= a:
-            raise ValueError("时间线存在空洞、重叠或无效边界")
+            raise ValueError("The timeline contains a gap, overlap, or invalid boundary.")
         if row["screen_state"] not in {"on", "off", "unknown"} or not row["label"].strip():
-            raise ValueError("屏幕状态或标签无效")
+            raise ValueError("Invalid screen state or label.")
         if row["review_status"] not in {"pending", "recorded", "confirmed", "excluded"}:
-            raise ValueError("复核状态无效")
+            raise ValueError("Invalid review status.")
         if row["review_status"] in {"recorded", "confirmed"} and row["label"] in {"unknown", "no_task"}:
-            raise ValueError("未知行为不能确认为真值，请补标或明确排除")
+            raise ValueError("Label the unknown activity or exclude its interval before confirming ground truth.")
         if row["review_status"] == "excluded" and not row.get("reason", "").strip():
-            raise ValueError("排除时间段需要原因")
+            raise ValueError("Provide a reason for excluding the interval.")
         cursor = b
     if abs(cursor - end) > 1e-6:
-        raise ValueError("时间线没有覆盖整轮采集")
+        raise ValueError("The timeline does not cover the full run.")
 
 
 def original_timeline(root):
@@ -103,7 +103,7 @@ def load_timeline(root):
             fingerprint = sources(root)
         if (path.name != f"{index:06d}.json" or review["revision"] != index
                 or review["previous_sha256"] != parent or review["source_sha256"] != fingerprint):
-            raise ValueError("原始文件或复核记录已变化，请检查来源和修订链")
+            raise ValueError("The source files or review records have changed. Check the source and revision history.")
         rows = review["timeline"]
         validate_timeline(rows, start, end)
         parent = sha256(path)
@@ -119,11 +119,11 @@ def revise_interval(root, *, start, end, label, app, screen_state, reason, exclu
     rows = load_timeline(root)
     lower, upper, _ = bounds(root)
     if not math.isfinite(start) or not math.isfinite(end) or not lower <= start < end <= upper:
-        raise ValueError("修订区间必须位于本轮采集时间内")
+        raise ValueError("The revised interval must fall within the collection window.")
     if not reason.strip() or len(reason) > 2000 or not label.strip() or len(label) > 160 or len(app) > 160:
-        raise ValueError("请填写标签及本次确认／补标的依据（不超过 2000 字）")
+        raise ValueError("Enter a label and the basis for the annotation or revision (up to 2,000 characters).")
     if label in {"unknown", "no_task"} and not exclude:
-        raise ValueError("无法确认的区间请选择排除，并填写原因")
+        raise ValueError("Exclude any interval you cannot confirm and provide a reason.")
     revised = []
     for row in rows:
         a, b = row["pc_start_epoch"], row["pc_end_epoch"]
@@ -164,10 +164,10 @@ def capture_audit(root):
         endian, _ = pcap_format(header, path)
         while record := handle.read(16):
             if len(record) != 16:
-                raise ValueError("PCAP 记录头不完整")
+                raise ValueError("Incomplete PCAP record header.")
             _, _, captured, original = struct.unpack(endian + "IIII", record)
             if len(handle.read(captured)) != captured:
-                raise ValueError("PCAP 数据包不完整")
+                raise ValueError("Incomplete PCAP packet.")
             count += 1
             truncated += captured < original
     log = root / "capture.pcap.tcpdump.stderr.log"
@@ -176,11 +176,11 @@ def capture_audit(root):
     captured, dropped = statistics["captured"], statistics["kernel_dropped"]
     errors = []
     if captured is None or dropped is None:
-        errors.append("缺少 tcpdump 完整结束及丢包统计")
+        errors.append("Missing tcpdump completion or packet-drop statistics.")
     elif captured != count or dropped:
-        errors.append("抓包记录数不一致或路由器报告丢包")
+        errors.append("Packet counts disagree or the router reported dropped packets.")
     if truncated:
-        errors.append("存在被截短的数据包")
+        errors.append("The capture contains truncated packets.")
     return dict(pcap_frames=count, truncated_frames=truncated,
                 kernel_dropped=dropped, errors=errors)
 
@@ -238,7 +238,7 @@ def export_snapshot(root, out):
     root = Path(root).resolve()
     value = snapshot(root)
     if not value['capture_ready']:
-        raise ValueError('抓包完整性检查未通过，原始文件已保留：'+'；'.join(value['errors']))
+        raise ValueError('Capture integrity check failed. Original files retained: '+'; '.join(value['errors']))
     out = Path(out)
     out.mkdir(parents=True, exist_ok=False)
     write_json(out/'export_manifest.json', dict(schema='manual-ground-truth-export-v2', status='writing'))
@@ -270,11 +270,11 @@ def export_snapshot(root, out):
     for name, expected in value['source_sha256'].items():
         copied = out/'capture.pcap' if name=='capture.pcap' else evidence/name
         if sha256(copied) != expected:
-            raise ValueError('复制后的文件与原始证据不一致：'+name)
+            raise ValueError('The copy differs from its source: '+name)
     packet_count = write_packet_csv(out, value)
     current = snapshot(root)
     if current != value:
-        raise ValueError('导出期间采集或标注发生变化，保留未完成导出，请重新导出')
+        raise ValueError('Collection data or annotations changed during export. The partial export was retained. Start a new export.')
     manifest = dict(schema='manual-ground-truth-export-v2', status='complete',
                     capture_ready=value['capture_ready'], labels_complete=value['labels_complete'],
                     review_complete=value['review_complete'],
@@ -292,21 +292,21 @@ def export_snapshot(root, out):
                     source_run=str(root), original_source_sha256=value['source_sha256'],
                     errors=value['errors'])
     (out/'README.md').write_text(
-        '# 手动行为采集数据\n\n'
-        'capture.pcap 是唯一的 PCAP，完整保留原始连续抓包，不拆分、不裁剪、不改时间戳。\n'
-        'packets.csv 保留全部目标 IP 包；ground_truth.csv 覆盖整轮，标记任务和 no_task 空档。\n'
-        '后续构造输入时，只选 ground_truth.csv 中 input_eligible=True 的时间区间；labeled_segments.csv 提供这些区间。\n'
-        '将包的 ts_epoch 与标签的 router_start_epoch / router_end_epoch 对齐，单位都是 Unix 秒，区间左闭右开。\n'
-        'length 是 PCAP 原始帧长度，单位字节；direction 的 in/out 以目标手机为参照。\n'
-        '按操作员采集规则：无任务时段标为 no_task 并排除，不输入、不评分，不作为 background 类。\n'
-        '时间轴保持连续，构造样本时不跨越被排除的空档。transition 是显式标记的任务，按自己的评估协议处理。\n'
-        'packets.csv 的 in_collection_interval 只表示是否处于本轮逻辑起止时间内，不表示该包可作为任务输入。\n'
-        '逻辑起止时间之外的启动／收尾包同样保留，但没有有效任务标签，不参与输入或评分。\n'
-        '已有按钮标签为 recorded，无需重复确认；补标或修订为 confirmed；未知为 pending；主动排除为 excluded。\n'
-        '先读 export_manifest.json：task_data_ready 表示任务数据就绪，no_task_seconds 是正常排除时长，无需补标。\n'
-        'pending_seconds 仅表示显式标记为 unknown 的任务；excluded_seconds 包括无任务时段及人工排除。\n'
-        'clock_uncertainty_seconds 不包含人工点击反应时间。raw 证据及每次修订保存在 evidence/。\n'
-        '此导出不包含模型、特征窗口、推测或评分。\n', encoding='utf-8')
+        '# Manually annotated activity data\n\n'
+        'capture.pcap contains the full continuous capture with its original timestamps.\n'
+        'packets.csv contains all target-IP packets. ground_truth.csv covers the full run, including no_task gaps.\n'
+        'Use intervals marked input_eligible=True in ground_truth.csv to construct inputs. These intervals are also listed in labeled_segments.csv.\n'
+        'Match packet ts_epoch to [router_start_epoch, router_end_epoch) in the label table. All times are in Unix seconds.\n'
+        'length is the original frame length in bytes. The in/out direction is relative to the target phone.\n'
+        'Intervals marked no_task are excluded from inputs and scores and do not belong to the background class.\n'
+        'Preserve the continuous timeline and keep samples within eligible intervals. Explicit transition tasks follow their own scoring protocol.\n'
+        'In packets.csv, in_collection_interval indicates whether a packet falls within the run boundaries. Use the label table to determine input eligibility.\n'
+        'Startup and shutdown packets outside those boundaries are retained and excluded from inputs and scores.\n'
+        'Annotation status is recorded for button labels, confirmed for reviewed or revised labels, pending for unknown activities, and excluded for explicit exclusions.\n'
+        'In export_manifest.json, task_data_ready indicates whether task data are ready. no_task_seconds measures excluded idle gaps that require no further annotation.\n'
+        'pending_seconds counts only tasks marked unknown. excluded_seconds includes no-task intervals and manual exclusions.\n'
+        'clock_uncertainty_seconds excludes operator reaction time. The evidence/ directory contains the raw evidence and each revision.\n'
+        'The export contains capture data and annotations only.\n', encoding='utf-8')
     if "manual_protocol" in value:
         observation = value['manual_protocol']['mode'] == 'background_observation'
         manifest.update(manual_protocol=value['manual_protocol'],
@@ -314,17 +314,17 @@ def export_snapshot(root, out):
                         event_count=len(value['event_windows']),
                         complete_event_windows=sum(p['input_eligible'] for p in value['event_windows']))
         (out/'README.md').write_text(
-            '# Screen Time · IoT 人工采集\n\n'
-            'capture.pcap 完整保留连续原始流量；packets.csv 包含全部目标 IP 包。时间单位为 Unix 秒。\n'
-            'manual_protocol 保存平台、设备、人工记录方式及预定前后窗口。IP 由操作员填写，未自动核验设备身份。\n'
-            'event_windows.json / CSV 保存人工动作时间 pc_event_epoch、对齐路由器的 router_event_epoch 及前后窗口。\n'
-            '包 ts_epoch 对齐 [router_start_epoch, router_end_epoch)。前后流量都完整的事件 input_eligible=True。\n'
-            '窗口重叠时 overlaps_other_event=True；不可当作互相独立或只有单一事件的样本。\n'
-            '标签表示操作员为触发该状态所实施的动作；state_verified=False，不能当作传感器实际状态转换的精确时间。\n'
-            'clock_uncertainty_seconds 包括首尾校时误差，不包含人工同步误差或传感器响应延迟。原始 PCAP 时间戳不改写。\n'
-            '连续观察模式只记录日常背景流量，没有自动状态标签。仅分析本轮逻辑起止时间内的包。\n'
-            'ground_truth.csv 是原有连续任务时间线；IoT 点事件输入使用 event_windows，连续观察使用连续流量。\n'
-            '原始打点、注册任务、校时与窗口证据保存在 evidence/。formal_ready=False，不自动增加正式样本数。\n',
+            '# Manually recorded IoT events\n\n'
+            'capture.pcap contains the continuous raw capture. packets.csv contains all target-IP packets. Times are in Unix seconds.\n'
+            'manual_protocol records the platform, device, annotation method, and requested pre- and post-event windows. The operator supplies the IP address without automatic identity verification.\n'
+            'The event window JSON and CSV record pc_event_epoch, the router-aligned router_event_epoch, and the windows before and after each event.\n'
+            'Match packet ts_epoch to [router_start_epoch, router_end_epoch). input_eligible=True requires complete traffic coverage on both sides of the event.\n'
+            'overlaps_other_event=True flags overlapping windows. Treat these as potentially correlated, multi-event samples.\n'
+            'Labels identify the action taken by the operator. With state_verified=False, the recorded time does not establish when the sensor changed state.\n'
+            'clock_uncertainty_seconds includes clock alignment error at both ends of the run. It excludes manual synchronization error and sensor response delay. PCAP timestamps retain their original values.\n'
+            'Continuous observation records routine traffic without automatic state labels. Analyze packets within the run boundaries.\n'
+            'ground_truth.csv describes the continuous task timeline. Use event_windows for point events and the continuous traffic for observation runs.\n'
+            'The evidence/ directory contains original markers, task registration, clock measurements, and window evidence. Runs with formal_ready=False do not count toward formal sample totals.\n',
             encoding='utf-8')
     manifest['artifact_sha256'] = {p.relative_to(out).as_posix(): sha256(p) for p in out.rglob('*')
                                    if p.is_file() and p.name != 'export_manifest.json'}
@@ -339,7 +339,7 @@ def packet_rows(path, value):
     phone_ip = value['phone_ip']
     for packet in iter_decoded_packets(path, ip_only=True):
         if phone_ip not in {packet['src_ip'], packet['dst_ip']}:
-            raise ValueError('PCAP 包含非目标设备的 IP 流量')
+            raise ValueError('The PCAP contains IP traffic from outside the target device.')
         yield dict(packet_index=packet['index'], ts_epoch=packet['ts_epoch'],
                    length=packet['length'], captured_length=packet['captured_length'],
                    direction='in' if packet['dst_ip']==phone_ip else 'out', ip_protocol=packet['ip_protocol'],
@@ -379,15 +379,15 @@ def verify_export(out):
     out = Path(out).resolve()
     manifest = read_json(out/'export_manifest.json')
     if manifest['status'] != 'complete':
-        raise ValueError('导出未完成')
+        raise ValueError('Export incomplete.')
     for name,expected in manifest['artifact_sha256'].items():
         path = (out/name.replace('\\','/')).resolve()
         if not path.is_relative_to(out) or sha256(path)!=expected:
-            raise ValueError('导出文件校验失败：'+name)
+            raise ValueError('Export verification failed: '+name)
     for name,expected in manifest['original_source_sha256'].items():
         path = out/'capture.pcap' if name=='capture.pcap' else out/'evidence'/name
         if sha256(path) != expected:
-            raise ValueError('导出副本与原始文件指纹不一致：'+name)
+            raise ValueError('The exported copy has a different hash from the source: '+name)
     value = read_json(out/'ground_truth.json')
     if "manual_protocol" in value:
         source_manifest = read_json(out/'evidence'/'collection_manifest.json')
@@ -399,21 +399,21 @@ def verify_export(out):
             point['clock_uncertainty_seconds'] = uncertainty
         if (value['manual_protocol'] != source_manifest['manual_protocol'] or
                 value['event_windows'] != points or read_json(out/'event_windows.json') != points):
-            raise ValueError('导出事件窗口与原始打点不一致')
+            raise ValueError('Exported event windows differ from the original markers.')
         if points:
             with (out/'event_windows.csv').open(encoding='utf-8-sig', newline='') as handle:
                 if list(csv.DictReader(handle)) != [{k:str(v) for k,v in p.items()} for p in points]:
-                    raise ValueError('事件 CSV 与原始打点不一致')
+                    raise ValueError('The event CSV differs from the original markers.')
     validate_timeline(value['timeline'],value['pc_start_epoch'],value['pc_end_epoch'])
     expected = export_rows(value)
     for filename,rows in [('ground_truth.csv',expected),('labeled_segments.csv',[r for r in expected if r['usable_label']])]:
         with (out/filename).open(encoding='utf-8-sig',newline='') as handle:
             actual = list(csv.DictReader(handle))
         if actual != [{key:str(v) for key,v in row.items()} for row in rows]:
-            raise ValueError('导出标签与保存的时间线不一致')
+            raise ValueError('Exported labels differ from the saved timeline.')
     with (out/'packets.csv').open(encoding='utf-8',newline='') as handle:
         if sum(1 for _ in csv.DictReader(handle)) != manifest['ip_packets']:
-            raise ValueError('导出包数量不一致')
+            raise ValueError('Exported packet counts disagree.')
     if manifest['schema']=='manual-ground-truth-export-v2':
         verify_packet_csv(out, value)
     return dict(valid=True, capture_ready=manifest['capture_ready'], fully_labeled_ready=manifest['fully_labeled_ready'],
@@ -427,6 +427,6 @@ def verify_packet_csv(out, value):
         actual = iter(csv.DictReader(handle))
         for row in packet_rows(out/'capture.pcap', value):
             if next(actual, None) != {key: str(item) for key, item in row.items()}:
-                raise ValueError('包 CSV 与连续 PCAP 不一致')
+                raise ValueError('The packet CSV differs from the continuous PCAP.')
         if next(actual, None) is not None:
-            raise ValueError('包 CSV 包含原始抓包之外的数据')
+            raise ValueError('The packet CSV contains data outside the original capture.')

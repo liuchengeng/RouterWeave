@@ -51,9 +51,9 @@ def device_identity(device, task, router):
     method = network.get('method', 'registry' if task['kind'] == 'iot' else task['platform'])
     source = phone_source(device)
     if source == 'participant' and (method != 'mac' or not network.get('mac')):
-        raise ValueError('请先登记参与者的手机，再开始采集。')
+        raise ValueError('Register the participant phone before starting collection.')
     if source == 'lab' and method != task['platform']:
-        raise ValueError('实验室手机配置与计划平台不一致，请重新选择手机来源。')
+        raise ValueError('The lab phone configuration differs from the planned platform. Select another phone source.')
     if method == 'registry':
         return resolve_task_identity(task, router)
     if method == 'android':

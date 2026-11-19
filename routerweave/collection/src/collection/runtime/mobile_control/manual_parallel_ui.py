@@ -83,15 +83,15 @@ class ParallelWindow:
                     source_choice.bind('<<ComboboxSelected>>', lambda _e, key=device['id'], var=source_var:
                                        self.select_phone_source(key, next(k for k,v in PHONE_SOURCES.items() if v==var.get())))
                 if source != 'lab':
-                    registration = ttk.Button(network_bar, text='登记设备 / 自动读取 IP',
+                    registration = ttk.Button(network_bar, text='Register device / detect IP',
                         command=lambda key=device['id']: self.register_device(key))
                     registration.pack(side='left')
                 else:
                     model = 'Android · Redmi 14R 5G' if device['collection_task_id'].startswith('android') else 'iPhone'
-                    ttk.Label(network_bar, text=f'{model} · 开场自动读取 IP').pack(side='left', padx=8)
+                    ttk.Label(network_bar, text=f'{model} · IP detected at start').pack(side='left', padx=8)
                 registered = device['network'].get('registration', {})
                 if registered:
-                    ttk.Label(network_bar, text=f"{device['network'].get('participant_id', '')} · 上次登记 {registered['ip']} · 开场自动复查").pack(side='left', padx=12)
+                    ttk.Label(network_bar, text=f"{device['network'].get('participant_id', '')} · Registered IP {registered['ip']} · Rechecked at start").pack(side='left', padx=12)
             canvas = tk.Canvas(frame, bg='white', height=78, highlightthickness=0); canvas.pack(fill='x')
             form = tk.Frame(frame, bg='white'); form.pack(fill='x')
             task, app = tk.StringVar(), tk.StringVar()
@@ -164,11 +164,11 @@ class ParallelWindow:
         participant = getattr(self, 'plan_metadata', {}).get('experiment', {}).get('participant_id', '')
         prefix = participant + ' · ' if participant else ''
         platform = 'Android' if device['collection_task_id'].startswith('android') else 'iPhone'
-        device['name'] = prefix + ('个人手机' if source=='participant' else f'实验室 {platform}')
+        device['name'] = prefix + ('Participant phone' if source=='participant' else f'Lab {platform}')
         self.plan = parallel_plan(self.serializable())
         self.build()
-        self.status.set('请登记参与者的手机，开场自动复查 IP' if source=='participant' else
-                        f'按计划平台分配实验室 {platform}；开场自动读取 IP')
+        self.status.set('Register the participant phone. Its IP will be checked at the start.' if source=='participant' else
+                        f'Using a lab {platform} for this plan. Its IP will be detected at the start.')
 
     def register_device(self, key):
         if self.busy or self.session or self.demo_started is not None:
@@ -176,7 +176,7 @@ class ParallelWindow:
         device = self.rows[key]['device']
         router = RouterCaptureConfig('', host=self.args.router_host, user=self.args.router_user,
                     interface=getattr(self.args, 'router_interface', 'br-lan'), identity_file=self.args.router_identity)
-        dialog = tk.Toplevel(self.root); dialog.title('登记设备 · 自动读取 IP')
+        dialog = tk.Toplevel(self.root); dialog.title('Register device and detect IP')
         dialog.transient(self.root); dialog.grab_set(); dialog.geometry('780x460')
         body = ttk.Frame(dialog, padding=18); body.pack(fill='both', expand=True)
         fields = ttk.Frame(body); fields.pack(fill='x', pady=(0, 12))
@@ -184,20 +184,20 @@ class ParallelWindow:
                          getattr(self, 'plan_metadata', {}).get('experiment', {}).get('participant_id', ''))
         platform = tk.StringVar(value={'ios': 'iOS / iPadOS', 'android': 'Android', 'windows': 'Windows'}.get(
                          device['collection_task_id'].split('-')[0], 'Android'))
-        ttk.Label(fields, text='参与者／设备标识').pack(side='left')
+        ttk.Label(fields, text='Participant or device ID').pack(side='left')
         ttk.Entry(fields, textvariable=participant, width=18).pack(side='left', padx=(8, 20))
-        ttk.Label(fields, text='系统').pack(side='left')
+        ttk.Label(fields, text='Platform').pack(side='left')
         ttk.Combobox(fields, textvariable=platform, values=('Android', 'iOS / iPadOS', 'Windows'),
                      state='readonly', width=15).pack(side='left', padx=8)
-        ttk.Label(body, text='先读取连接前设备，再让手机连接采集 Wi-Fi，点刷新；已连接的手机可直接从列表选择。',
+        ttk.Label(body, text='Read the device list before connecting the phone, then connect it to the collection Wi-Fi and refresh. If already connected, select it from the list.',
                   wraplength=720).pack(anchor='w', pady=(0, 12))
         table = ttk.Treeview(body, columns=('new', 'name', 'ip', 'mac'), show='headings', selectmode='browse', height=8)
-        for column, title, width in (('new', '状态', 85), ('name', '路由器设备名', 210), ('ip', '自动读取的 IP', 150), ('mac', 'Wi-Fi 设备地址', 190)):
+        for column, title, width in (('new', 'Status', 85), ('name', 'Router device name', 210), ('ip', 'Detected IP', 150), ('mac', 'Wi-Fi MAC address', 190)):
             table.heading(column, text=title); table.column(column, width=width, minwidth=70)
         table.pack(fill='both', expand=True)
         scroll = ttk.Scrollbar(body, orient='horizontal', command=table.xview); scroll.pack(fill='x')
         table.configure(xscrollcommand=scroll.set)
-        status = tk.StringVar(value='读取路由器设备清单…')
+        status = tk.StringVar(value='Reading devices from the router…')
         ttk.Label(body, textvariable=status, wraplength=720).pack(anchor='w', pady=10)
         buttons = ttk.Frame(body); buttons.pack(fill='x')
         state = dict(clients={}, baseline=None, loading=False)
@@ -209,14 +209,14 @@ class ParallelWindow:
                 return
             selection = table.selection()
             if confirm and not selection:
-                status.set('请选择参与者的设备；多台新设备同时接入时不会自动猜测。'); return
+                status.set('Select the participant phone. Multiple devices connected at the same time.'); return
             selected_mac = selection[0] if confirm else None
             selected_participant = participant.get()
             selected_platform = platform.get()
             state['loading'] = True
             for button in (snapshot_button, refresh_button, confirm_button):
                 button.configure(state='disabled')
-            status.set('复查设备当前 IP…' if confirm else '读取路由器设备清单…')
+            status.set('Checking the current device IP…' if confirm else 'Reading devices from the router…')
             def work():
                 try:
                     clients = read_router_clients(router)
@@ -243,7 +243,7 @@ class ParallelWindow:
                     except Exception as exc:
                         status.set(str(exc)); return
                     dialog.destroy(); self.build()
-                    self.status.set(f"{selected_participant} · IP {network['registration']['ip']} 已登记；开场自动复查")
+                    self.status.set(f"{selected_participant} · Registered IP {network['registration']['ip']} · Rechecked at start")
                     return
                 state['clients'] = clients
                 if reset or state['baseline'] is None:
@@ -251,34 +251,34 @@ class ParallelWindow:
                 choices = registration_candidates(clients, baseline_macs=state['baseline'], excluded_macs=excluded)
                 table.delete(*table.get_children())
                 for row in choices:
-                    table.insert('', 'end', iid=row['mac'], values=('新接入' if row['new_connection'] else '已在线',
-                                 row['router_name'] or '未命名', row['ip'], row['mac']))
+                    table.insert('', 'end', iid=row['mac'], values=('New' if row['new_connection'] else 'Online',
+                                 row['router_name'] or 'Unnamed', row['ip'], row['mac']))
                 new = [row for row in choices if row['new_connection']]
                 if len(new) == 1:
                     table.selection_set(new[0]['mac']); table.see(new[0]['mac'])
-                    status.set('检测到一台新接入设备。确认是参与者的手机后，点击登记。')
+                    status.set('One new device detected. Confirm that it is the participant phone, then register it.')
                 elif len(new) > 1:
-                    status.set('检测到多台新设备，请选择参与者的手机。')
+                    status.set('Multiple new devices detected. Select the participant phone.')
                 elif selection and table.exists(selection[0]):
-                    table.selection_set(selection[0]); status.set('IP 已刷新，请确认所选设备。')
+                    table.selection_set(selection[0]); status.set('IP refreshed. Confirm the selected device.')
                 else:
-                    status.set('连接前状态已记录，请让手机连接 Wi-Fi 后刷新；已连接的手机直接从列表选择。')
+                    status.set('Initial device list recorded. Connect the phone to Wi-Fi and refresh, or select an already connected device.')
             dialog.after(100, poll)
 
-        snapshot_button = ttk.Button(buttons, text='读取连接前设备', command=lambda: load(reset=True))
+        snapshot_button = ttk.Button(buttons, text='Read initial device list', command=lambda: load(reset=True))
         snapshot_button.pack(side='left')
-        refresh_button = ttk.Button(buttons, text='刷新 / 检测新设备', command=load)
+        refresh_button = ttk.Button(buttons, text='Refresh devices', command=load)
         refresh_button.pack(side='left', padx=8)
-        confirm_button = ttk.Button(buttons, text='确认并登记', command=lambda: load(confirm=True))
+        confirm_button = ttk.Button(buttons, text='Confirm registration', command=lambda: load(confirm=True))
         confirm_button.pack(side='right')
         load(reset=True)
 
     def bind_registered_device(self, key, platform, network):
         """Persist the operator-confirmed identity, not a cached capture IP."""
         if self.busy or self.session or self.demo_started is not None:
-            raise ValueError('请在采集开始前登记设备。')
+            raise ValueError('Register the device before starting collection.')
         if any(d['id'] != key and d['network'].get('mac', '').lower() == network['mac'] for d in self.plan['devices']):
-            raise ValueError('这台设备已登记到另一条时间轴，请选择独立设备。')
+            raise ValueError('This device is registered to another timeline. Select a separate device.')
         task_id = {'Android': 'android-manual-screen-time', 'iOS / iPadOS': 'ios-manual-screen-time',
                    'Windows': 'windows-manual-screen-time'}[platform]
         candidate = self.serializable()

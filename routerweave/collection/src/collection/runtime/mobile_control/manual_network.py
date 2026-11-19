@@ -10,7 +10,7 @@ from pathlib import Path
 from collection.runtime.registry.tasks import DEFAULT_CONFIG_ROOT
 from .capture.router import _router_ssh
 
-PHONE_SOURCES = {'participant': '参与者自己的手机', 'lab': '自动分配实验室手机'}
+PHONE_SOURCES = {'participant': 'Participant phone', 'lab': 'Lab phone (auto-assigned)'}
 
 
 def phone_source(device):
@@ -27,7 +27,7 @@ def phone_source(device):
 def phone_network_for_source(device, source):
     """Switch identity methods without reusing the other source's active binding."""
     if source not in PHONE_SOURCES or phone_source(device) is None:
-        raise ValueError('请选择参与者手机或自动分配实验室手机。')
+        raise ValueError('Choose a participant phone or an automatically assigned lab phone.')
     platform = device['collection_task_id'].split('-')[0]
     current = device.get('network', {})
     default_lab = dict(method='android', serial=os.environ.get("ANDROID_SERIAL", "")) if platform == 'android' else \
@@ -47,13 +47,13 @@ def read_router_clients(router):
     response = _router_ssh(router.user, router.host, "ubus call gl-clients list",
                            identity_file=router.identity_file, timeout=8)
     if response.returncode:
-        raise ValueError("无法读取路由器在线设备清单，请检查路由器连接。")
+        raise ValueError("Cannot read the online device list. Check the router connection.")
     try:
         clients = json.loads(response.stdout)["clients"]
     except (ValueError, KeyError, TypeError) as exc:
-        raise ValueError("路由器返回的设备清单无效，请刷新重试。") from exc
+        raise ValueError("Invalid device list from the router. Refresh and try again.") from exc
     if not isinstance(clients, dict) or any(not isinstance(row, dict) for row in clients.values()):
-        raise ValueError("路由器返回的设备清单无效，请刷新重试。")
+        raise ValueError("Invalid device list from the router. Refresh and try again.")
     return clients
 
 
@@ -77,9 +77,9 @@ def registration_candidates(clients, *, baseline_macs=(), excluded_macs=()):
 def registered_network(participant_id, device_id, mac, clients):
     participant_id = participant_id.strip()
     if not participant_id or len(participant_id) > 64:
-        raise ValueError('请填写参与者／设备标识（不超过 64 个字符）。')
+        raise ValueError('Enter a participant or device identifier of up to 64 characters.')
     if not re.fullmatch(r'(?:[0-9a-f]{2}:){5}[0-9a-f]{2}', mac.lower()):
-        raise ValueError('设备 MAC 地址无效，请重新选择。')
+        raise ValueError('Invalid device MAC address. Select the device again.')
     identity = match_router_client(dict(mac=mac.lower(), scope='direct_device', identity_key=device_id), clients)
     return dict(method='mac', mac=identity['mac'], participant_id=participant_id,
                 registration=identity)
@@ -94,9 +94,9 @@ def configured_identity(task, identities):
         direct_keys = [key for key in reviewed.get("identity_keys", [])
                        if key in identities and identities[key].get("scope") == "direct_device"]
         if not reviewed.get("mac") or not direct_keys:
-            raise ValueError(f"尚未确认 {task['title']} 的本机 MAC；代理地址不能代替设备身份。")
+            raise ValueError(f"Confirm the device MAC for {task['title']}. A proxy address cannot identify the device.")
         if any(str(identities[key].get("mac", "")).lower() != reviewed["mac"] for key in direct_keys):
-            raise ValueError("设备身份已更改，需要重新核对，未使用旧的 MAC。")
+            raise ValueError("The device identity has changed. Verify it before using the MAC address.")
         return {**identities[direct_keys[0]], "identity_key": direct_keys[0]}
     matches = []
     for key, value in identities.items():
@@ -108,9 +108,9 @@ def configured_identity(task, identities):
             matches.append({**value, "identity_key": key})
     unique = {(row["mac"].lower(), row["scope"]) for row in matches}
     if not matches:
-        raise ValueError(f"尚未确认 {task['title']} 的 MAC 地址，请由助手核对设备后再识别。")
+        raise ValueError(f"Verify the MAC address for {task['title']} before resolving its IP address.")
     if len(unique) != 1:
-        raise ValueError("设备对应多个网络身份，需要核对，未自动选择 IP。")
+        raise ValueError("Multiple network identities match this device. Verify its identity before selecting an IP address.")
     return matches[0]
 
 
@@ -118,14 +118,14 @@ def match_router_client(identity, clients):
     mac = identity["mac"].lower()
     active = [row for row in clients.values() if row.get("mac", "").lower() == mac and row.get("online") is True]
     if len(active) != 1:
-        raise ValueError(f"已知 MAC {mac} 当前没有唯一在线地址；请确认设备连接采集 Wi-Fi 后重新识别。")
+        raise ValueError(f"No unique online address for {mac}. Connect the device to the collection Wi-Fi and retry.")
     row = active[0]
     ip = ipaddress.ip_address(row.get("ip", ""))
     if ip.version != 4 or ip.is_unspecified or ip.is_multicast or ip.is_loopback:
-        raise ValueError("路由器没有返回可用的设备 IPv4 地址。")
+        raise ValueError("The router returned no usable IPv4 address for the device.")
     if any(other.get("online") is True and other.get("ip") == str(ip) and
            other.get("mac", "").lower() != mac for other in clients.values()):
-        raise ValueError("路由器报告 IP 冲突，未自动选择该地址。")
+        raise ValueError("The router reported an IP conflict. Select a unique address.")
     return dict(identity_key=identity["identity_key"], mac=mac, ip=str(ip), scope=identity["scope"],
                 proxy_device=identity.get("proxy_device"), router_name=row.get("name", ""),
                 wifi_band=row.get("iface", ""), method="registered_mac_to_online_router_client",

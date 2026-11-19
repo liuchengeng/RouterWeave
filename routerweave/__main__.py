@@ -1,4 +1,4 @@
-"""Run a RouterWeave experiment from the repository root."""
+"""Run a Routerweave experiment from the repository root."""
 
 import argparse
 from pathlib import Path

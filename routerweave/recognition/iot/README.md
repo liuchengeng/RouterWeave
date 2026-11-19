@@ -1,4 +1,4 @@
-# RouterWeave IoT operation recognition
+# Routerweave IoT operation recognition
 
 [models/classifier.pt](models/classifier.pt) contains the IoT operation classifier used in the paper.
 

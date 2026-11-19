@@ -1,4 +1,4 @@
-# RouterWeave evaluation
+# Routerweave evaluation
 
 This module scores activity recognition on four datasets, compares observation units and evidence views, and measures recognition latency and resource use. The `evidence/` directory contains anonymized records from the experiments. The numbers printed by the scorer are computed from those records. The examples use synthetic traffic.
 
@@ -16,7 +16,7 @@ This command uses the Python standard library, reads eight CSVs relative to the 
 
 ## Recognition comparison
 
-| Dataset | Test unit | RouterWeave | BehavIoT | FlowPrint |
+| Dataset | Test unit | Routerweave | BehavIoT | FlowPrint |
 |---|---|---:|---:|---:|
 | RouterWeave-App | 2,424 labeled 30 s windows, 39 captures | 94.41 | 69.49 | 73.42 |
 | RouterWeave-IoT | 1,022 matched detector candidates | 97.46 | 91.15 | 40.30 |
@@ -26,9 +26,9 @@ This command uses the Python standard library, reads eight CSVs relative to the 
 Values are macro-F1 percentages. For each test-supported class the scorer computes `2 TP / (number of references + number of predictions)`, then averages over classes. Every test unit contributes to accuracy. An abstention produces a miss for its true class. The three RouterWeave-IoT fits use seeds 42, 43 and 44. Each is scored separately before averaging.
 
 - **RouterWeave-App.** The fit uses 156 recordings. The frozen joint model is scored on 39 historically inspected recordings. The numerical baseline slices a device's packets at the registered window cutoffs using `(end − 30 s, end]`. FlowPrint uses global destination/certificate matching. An empty fingerprint can still receive a fallback label.
-- **RouterWeave-IoT.** Scoring is conditional on a candidate matching a reference operation. There are 19 test-supported classes in a 20-output vocabulary. Distinct segments from 39 of the 74 evaluation capture batches also entered fitting. The RouterWeave classifier uses a known-device label mask. FlowPrint fingerprints a source and assigns its label to each candidate from that source. Missed detections enter the separate event experiment.
-- **BehavIoT-Dataset.** Capture components stay together across the 4,223/1,408/1,409 train/validation/test clips. Device category and operation family determine the label. RouterWeave uses complete payload sequences and a single 40-epoch seed-42 fit. The retained numerical BehavIoT row omits hostname and periodic filtering. Variant performance had already been inspected on test data.
-- **ITC-Net-Blend-60.** Whole captures are split 399/129/149, producing 5,885/2,031/2,104 windows. Each nonempty 30 s interval inherits its app's dominant purpose, including the final partial interval. Calls within a messaging app therefore still count as messaging. The eight-class RouterWeave fit used seed 42, a maximum of 25 epochs and validation checkpoint selection. The mapping covers 35 apps. [Label mappings](taxonomy.json)
+- **RouterWeave-IoT.** Scoring is conditional on a candidate matching a reference operation. There are 19 test-supported classes in a 20-output vocabulary. Distinct segments from 39 of the 74 evaluation capture batches also entered fitting. The Routerweave classifier uses a known-device label mask. FlowPrint fingerprints a source and assigns its label to each candidate from that source. Missed detections enter the separate event experiment.
+- **BehavIoT-Dataset.** Capture components stay together across the 4,223/1,408/1,409 train/validation/test clips. Device category and operation family determine the label. Routerweave uses complete payload sequences and a single 40-epoch seed-42 fit. The retained numerical BehavIoT row omits hostname and periodic filtering. Variant performance had already been inspected on test data.
+- **ITC-Net-Blend-60.** Whole captures are split 399/129/149, producing 5,885/2,031/2,104 windows. Each nonempty 30 s interval inherits its app's dominant purpose, including the final partial interval. Calls within a messaging app therefore still count as messaging. The eight-class Routerweave fit used seed 42, a maximum of 25 epochs and validation checkpoint selection. The mapping covers 35 apps. [Label mappings](taxonomy.json)
 
 ### Run adapters and fit baselines on new data
 
@@ -75,9 +75,9 @@ The single-stream experiment used a GL-MT3000 with two CPU cores. Android, iOS a
 
 | Single-stream definition | Timed outputs | P95 | Peak RSS (MiB) | Model (decimal MB) |
 |---|---:|---:|---:|---:|
-| Application · RouterWeave | 10,350 | 41.08 ms | 6.99 | 2.50 |
+| Application · Routerweave | 10,350 | 41.08 ms | 6.99 | 2.50 |
 | Application · FlowPrint | 10,350 | 11.62 ms | 19.77 | 2.83 |
-| IoT · RouterWeave, matched positive | 3,810 / 4,140 eligible trials | 4.77 s | 5.41 | 1.68 |
+| IoT · Routerweave, matched positive | 3,810 / 4,140 eligible trials | 4.77 s | 5.41 | 1.68 |
 | IoT · BehavIoT, matched positive burst | 390 / 1,380 eligible trials | 7.43 s | 0.88 | 0.48 |
 | IoT · BehavIoT, final window decision | 1,380 / 1,380 eligible trials | 11.43 s | 1.00 | 0.48 |
 
@@ -97,7 +97,7 @@ python -B examples/generate_replay_fixture.py toy-input
 
 The synthetic trace contains two destination flows and a tiny two-class fingerprint model. It emits label 1 at the 30-second cutoff. The MAC, device index and detector string are unused in application mode. Its timing has no experimental meaning. To build the router programs, run `python -B native/build.py --output bin-arm`. The three binaries are `latency`, `latency-rf-window` and `capacity`.
 
-The latency argument order is model directory, mode, timestamp-ordered Ethernet PCAP, device IPv4 address, device MAC, device index, detector key, duration (s), and pacing flag. The four modes are `app-rw`, `app-fp`, `iot-rw` and `iot-rf`. Application RouterWeave reads `weights.bin` and `normalizer.bin`; application FlowPrint reads `flowprint.bin`. IoT RouterWeave reads `iot-models.bin`; BehavIoT reads the fitted device forest under `rf/`. The final-window program additionally reads `rf-labels.txt`. The capacity argument order is model/input directory, workload manifest, warm-up (s), observation duration (s), pacing flag, and tail (s). A manifest starts with App and IoT stream counts, followed by one `pcap ipv4` row per App stream and one `pcap mac detector device_index` row per IoT stream. The capacity runtime reads `native-models.bin` for IoT. Use workload-specific assets when repeating a physical measurement. Results in this module are taken from the original router observations.
+The latency argument order is model directory, mode, timestamp-ordered Ethernet PCAP, device IPv4 address, device MAC, device index, detector key, duration (s), and pacing flag. The four modes are `app-rw`, `app-fp`, `iot-rw` and `iot-rf`. Application Routerweave reads `weights.bin` and `normalizer.bin`; application FlowPrint reads `flowprint.bin`. IoT Routerweave reads `iot-models.bin`; BehavIoT reads the fitted device forest under `rf/`. The final-window program additionally reads `rf-labels.txt`. The capacity argument order is model/input directory, workload manifest, warm-up (s), observation duration (s), pacing flag, and tail (s). A manifest starts with App and IoT stream counts, followed by one `pcap ipv4` row per App stream and one `pcap mac detector device_index` row per IoT stream. The capacity runtime reads `native-models.bin` for IoT. Use workload-specific assets when repeating a physical measurement. Results in this module are taken from the original router observations.
 
 ## Scoring inputs and provenance
 

@@ -75,8 +75,8 @@ def measure_router_clock(router: RouterCaptureConfig) -> dict[str, Any]:
                              "stderr_tail": decoded_tail(exc.stderr)})
             if len(timeouts) > 1:
                 error = RuntimeError(
-                    f"路由器 {router.host} 的 SSH 校时两次超时（每次 8 秒），无法确认时间对齐。"
-                    "诊断记录已保留；超时也可能发生在登录之后，需要检查 SSH 子进程。"
+                    f"Two SSH clock checks on {router.host} timed out after 8 seconds each. Clock alignment could not be verified. "
+                    "Diagnostic records were retained. Check the SSH subprocess for timeouts after login."
                 )
                 error.clock_probe_timeouts = timeouts
                 raise error from exc
@@ -85,13 +85,13 @@ def measure_router_clock(router: RouterCaptureConfig) -> dict[str, Any]:
         raw = result.stdout.strip()
         match = re.fullmatch(r"(\d{9,})(?:\.(\d*|%N|N))?", raw)
         if result.returncode or not match:
-            raise RuntimeError("无法读取路由器时钟：" + (result.stderr.strip() or raw))
+            raise RuntimeError("Cannot read the router clock: " + (result.stderr.strip() or raw))
         fraction = match.group(2) or ""
         resolution = 10 ** (-len(fraction)) if fraction.isdigit() else 1.0
         remote = float(match.group(1) + ("." + fraction if fraction.isdigit() else ""))
         rtt = after["monotonic"] - before["monotonic"]
         if abs(after["pc_epoch"] - before["pc_epoch"] - rtt) > 0.1:
-            raise RuntimeError("电脑时钟发生跳变，请稳定系统时间后重试。")
+            raise RuntimeError("The host clock jumped. Stabilize the system time and retry.")
         samples.append({
             "pc_midpoint_epoch": (before["pc_epoch"] + after["pc_epoch"]) / 2,
             "router_epoch": remote, "resolution_seconds": resolution,
@@ -103,7 +103,7 @@ def measure_router_clock(router: RouterCaptureConfig) -> dict[str, Any]:
             break
     best = min(samples, key=lambda row: row["uncertainty_seconds"])
     if best["uncertainty_seconds"] > 1:
-        raise RuntimeError("时钟校准误差超过 1 秒，请检查电脑与路由器连接后重试。")
+        raise RuntimeError("Clock calibration error exceeds one second. Check the router connection and retry.")
     return {**best, "samples": samples, "method": "ssh_date_midpoint", "probe_timeouts": timeouts}
 
 
@@ -133,31 +133,31 @@ def segments_from_events(events: list[dict[str, Any]], clock: dict[str, Any], *,
         kind = event["event"]
         pc, mono = float(event["pc_epoch"]), float(event["monotonic"])
         if not math.isfinite(pc) or not math.isfinite(mono) or mono < previous_mono:
-            raise ValueError("标注时间无效或顺序错误")
+            raise ValueError("Annotation timestamps are invalid or out of order.")
         previous_mono = mono
         if anchor and abs((pc - anchor[0]) - (mono - anchor[1])) > 0.25:
-            raise ValueError("采集期间电脑时钟跳变，时间对齐需要复核")
+            raise ValueError("The host clock jumped during collection. Review the clock alignment.")
         if kind == "capture_ready":
             if ready or finished:
-                raise ValueError("重复的采集开始事件")
+                raise ValueError("Duplicate collection start event.")
             ready, anchor = True, (pc, mono)
         elif kind == "segment_start":
             if not ready or finished or end_requested or active or event["segment_id"] in seen:
-                raise ValueError("任务重叠、重复或位于采集窗口外")
+                raise ValueError("A task overlaps another task, is duplicated, or falls outside the capture window.")
             if not event.get("label", "").strip() or event.get("screen_state") not in {"on", "off", "unknown"}:
-                raise ValueError("任务标签或屏幕状态无效")
+                raise ValueError("Invalid task label or screen state.")
             seen.add(event["segment_id"])
             active = event
         elif kind == "event_mark":
             if not ready or finished or end_requested or active:
-                raise ValueError("事件打点位于采集窗口外，或与连续任务混用")
+                raise ValueError("An event marker falls outside the capture window or overlaps a continuous task.")
             if not event.get("label", "").strip():
-                raise ValueError("事件缺少标签")
+                raise ValueError("Missing event label.")
         elif kind == "segment_end":
             if not active or active["segment_id"] != event["segment_id"]:
-                raise ValueError("任务结束缺少对应的开始事件")
+                raise ValueError("Task end has no matching start.")
             if mono <= active["monotonic"]:
-                raise ValueError("任务时长必须大于零")
+                raise ValueError("Task duration must be positive.")
             offset = float(clock["offset_seconds"])
             rows.append({
                 "segment_id": active["segment_id"], "label": active["label"],
@@ -173,16 +173,16 @@ def segments_from_events(events: list[dict[str, Any]], clock: dict[str, Any], *,
             active = None
         elif kind == "capture_end_requested":
             if not ready or finished or active or end_requested:
-                raise ValueError("采集结束请求与任务状态不一致")
+                raise ValueError("The stop request is inconsistent with the task state.")
             end_requested = True
         elif kind == "capture_stopped":
             if not ready or finished or active:
-                raise ValueError("采集结束事件与任务状态不一致")
+                raise ValueError("The collection end event is inconsistent with the task state.")
             finished = True
         else:
-            raise ValueError("未知标注事件：" + str(kind))
+            raise ValueError("Unknown annotation event: " + str(kind))
     if active and not allow_open:
-        raise ValueError("存在未结束任务，保留原始开始事件等待复核")
+        raise ValueError("A task is still open. The original start event was retained for review.")
     return rows
 
 
@@ -215,7 +215,7 @@ def event_windows(events, manifest, *, now=None):
         if (mark["event_id"] in seen or mark["label"] not in protocol["actions"]
                 or mark["input_source"] not in {"keyboard_space", "button"}
                 or mark.get("evidence_basis") != "operator_physical_action"):
-            raise ValueError("事件打点身份、标签或人工来源无效")
+            raise ValueError("Invalid event marker identity, label, or operator source.")
         seen.add(mark["event_id"])
         complete_pre = mark["monotonic"] - start["monotonic"] >= pre
         complete_post = end is not None and end["monotonic"] - mark["monotonic"] >= post
@@ -264,12 +264,12 @@ class ManualGroundTruthSession:
 
     def configure_iot(self, *, observation=False):
         if self.state != "idle":
-            raise ValueError("请在采集开始前选择模式")
+            raise ValueError("Choose a mode before starting collection.")
         task = require_collection_task(self.task_id, config_root=self.config_root, kind="iot")
         if task["kind"] != "iot" or (not observation and task["category"] not in EVENT_TIMINGS):
-            raise ValueError("请选择已注册的门铃、motion 或环境传感器任务")
+            raise ValueError("Select a registered doorbell, motion, or environmental sensor task.")
         if task["metadata"].get("manual_observation_only") and not observation:
-            raise ValueError("此任务仅支持设备连续观察，不生成平台状态事件")
+            raise ValueError("This task supports continuous device observation only and produces no platform state events.")
         pre, post = EVENT_TIMINGS.get(task["category"], (0, 0))
         self.protocol = dict(mode="background_observation" if observation else "event_markers",
                              pre_seconds=pre, post_seconds=post, category=task["category"],
@@ -291,7 +291,7 @@ class ManualGroundTruthSession:
 
     def start(self) -> None:
         if self.state != "idle":
-            raise ValueError("本轮采集已经启动")
+            raise ValueError("This run has already started.")
         self.router.validate()
         task = require_collection_task(self.task_id, config_root=self.config_root,
                                        kind="iot" if self.protocol else "manual",
@@ -329,7 +329,7 @@ class ManualGroundTruthSession:
             deadline = time.monotonic() + 6
             while not valid_pcap_header(self.root / "capture.pcap"):
                 if self.capture.proc.poll() is not None or time.monotonic() > deadline:
-                    raise RuntimeError("抓包未就绪：没有收到有效 PCAP 文件头。请检查路由器和接口。")
+                    raise RuntimeError("No valid PCAP header received. Check the router and capture interface.")
                 time.sleep(0.1)
             self._event("capture_ready")
             self.state = "recording"
@@ -373,42 +373,42 @@ class ManualGroundTruthSession:
         if self.state != "recording":
             return ""
         if self.capture.proc.poll() is not None:
-            return "路由器抓包连接已中断，本轮需要复核。"
+            return "The router capture connection was interrupted. Review this run."
         now = timestamp()
         start = self.events[0]
         if abs(now["pc_epoch"] - start["pc_epoch"] - now["monotonic"] + start["monotonic"]) > 0.25:
-            return "电脑时钟发生跳变，本轮时间对齐需要复核。"
+            return "The host clock jumped. Review clock alignment for this run."
         return ""
 
     def begin_segment(self, label: str, app: str = "", note: str = "", screen_state: str = "on", *, at=None) -> None:
         at = at or timestamp()
         if self.protocol:
-            raise ValueError("IoT 模式请使用事件打点或连续观察")
+            raise ValueError("Select event marking or continuous observation for IoT collection.")
         if self.state != "recording" or self.active:
-            raise ValueError("请先启动采集，或结束当前任务。")
+            raise ValueError("Start collection or finish the active task first.")
         if problem := self.health_error():
             raise RuntimeError(problem)
         if not label.strip() or len(label) > 160 or len(app) > 160 or len(note) > 2000:
-            raise ValueError("请输入任务标签（最多 160 字），备注最多 2000 字。")
+            raise ValueError("Enter a task label of up to 160 characters and a note of up to 2,000 characters.")
         if screen_state not in {"on", "off", "unknown"}:
-            raise ValueError("请选择屏幕状态。")
+            raise ValueError("Select a screen state.")
         self.active = self._event("segment_start", at, segment_id=f"segment-{len(self.rows)+1:04d}",
                                   label=label.strip(), app=app.strip(), note=note.strip(), screen_state=screen_state)
 
     def mark_event(self, label, note="", *, at=None, input_source="button"):
         at = at or timestamp()
         if self.state != "recording" or self.protocol.get("mode") != "event_markers":
-            raise ValueError("请先启动 IoT 事件采集")
+            raise ValueError("Start IoT event collection first.")
         if label not in self.protocol["actions"] or len(note) > 2000:
-            raise ValueError("请选择本设备已注册的事件，备注最多 2000 字")
+            raise ValueError("Select a registered event for this device and limit the note to 2,000 characters.")
         if input_source not in {"keyboard_space", "button"}:
-            raise ValueError("未知打点来源")
+            raise ValueError("Unknown event marker source.")
         if problem := self.health_error():
             raise RuntimeError(problem)
         previous = self.events[-1]
         if (at["monotonic"] < previous["monotonic"] or
                 abs(at["pc_epoch"] - previous["pc_epoch"] - at["monotonic"] + previous["monotonic"]) > .25):
-            raise ValueError("打点时间顺序或电脑时钟异常")
+            raise ValueError("The marker timestamps are out of order or the host clock changed.")
         count = sum(e["event"] == "event_mark" for e in self.events)
         self._event("event_mark", at, event_id=f"event-{count+1:04d}", label=label,
                     note=note.strip(), input_source=input_source, evidence_basis="operator_physical_action")
@@ -417,7 +417,7 @@ class ManualGroundTruthSession:
     def end_segment(self, reason: str = "operator_end", at: dict[str, float] | None = None) -> None:
         at = at or timestamp()
         if not self.active:
-            raise ValueError("当前没有正在记录的任务。")
+            raise ValueError("No task is being recorded.")
         self._event("segment_end", at, segment_id=self.active["segment_id"], reason=reason)
         self.active = None
         self._export()
@@ -426,13 +426,13 @@ class ManualGroundTruthSession:
         """One durable event closes the old task and opens the new at the same instant."""
         at = timestamp()
         if self.state != "recording" or not self.active:
-            raise ValueError("请先开始当前任务。")
+            raise ValueError("Start the current task first.")
         if problem := self.health_error():
             raise RuntimeError(problem)
         if not label.strip() or len(label) > 160 or len(app) > 160 or len(note) > 2000:
-            raise ValueError("任务标签或备注无效。")
+            raise ValueError("Invalid task label or note.")
         if screen_state not in {"on", "off", "unknown"}:
-            raise ValueError("请选择屏幕状态。")
+            raise ValueError("Select a screen state.")
         self.active = self._event("segment_switch", at, previous_segment_id=self.active["segment_id"],
                                   segment_id=f"segment-{len(self.rows)+2:04d}", label=label.strip(),
                                   app=app.strip(), note=note.strip(), screen_state=screen_state)
@@ -452,7 +452,7 @@ class ManualGroundTruthSession:
 
     def stop(self, error: str = "", at: dict[str, float] | None = None) -> Any:
         if self.state != "recording":
-            raise ValueError("本轮采集未在运行。")
+            raise ValueError("Collection is not running.")
         at = at or timestamp()
         error = error or self.health_error()
         self.state = "stopping"
@@ -512,11 +512,11 @@ def validate_manual_ground_truth(root: Path, manifest: dict[str, Any]):
         diagnostic = scope == "lan_diagnostic"
         if (manifest["attribution_mode"] != "none"
                 or manifest.get("annotation_source") != "operator" or scope not in CAPTURE_SCOPES):
-            raise ValueError("手动采集的平台或流量模式错误")
+            raise ValueError("Invalid platform or traffic mode for manual collection.")
         if diagnostic and (not protocol or manifest.get("diagnostic_only") is not True
                            or manifest.get("capture_filter") != manual_capture_filter(
                                RouterCaptureConfig(**manifest['router']), scope)):
-            raise ValueError("整网诊断缺少明确的范围或诊断标记")
+            raise ValueError("Whole-network diagnostics require an explicit scope and diagnostic flag.")
         if diagnostic:
             warnings.append("Whole-network diagnostic capture; unrelated endpoints are not target-device or formal action evidence.")
         else:
@@ -528,7 +528,7 @@ def validate_manual_ground_truth(root: Path, manifest: dict[str, Any]):
                 or binding.get("task_id") != task_id or binding.get("registration_status") != "registered"
                 or binding.get("kind") != kind or binding.get("platform") != platform
                 or (not protocol and platform not in ("ios", "android", "windows"))):
-            raise ValueError("采集任务未注册或绑定不一致")
+            raise ValueError("The collection task is unregistered or its binding is inconsistent.")
         if protocol:
             if (protocol["mode"] not in {"event_markers", "background_observation"}
                     or (protocol["mode"] == "event_markers" and task["category"] not in EVENT_TIMINGS)
@@ -537,61 +537,61 @@ def validate_manual_ground_truth(root: Path, manifest: dict[str, Any]):
                     or (protocol["pre_seconds"], protocol["post_seconds"]) != EVENT_TIMINGS.get(task["category"], (0, 0))
                     or not _manual_actions_match(protocol, task, manifest)
                     or protocol.get("state_verification") != "not_performed"):
-                raise ValueError("IoT 人工采集协议与注册任务不一致")
+                raise ValueError("The manual IoT protocol differs from the registered task.")
             if task["metadata"].get("manual_observation_only") and protocol["mode"] != "background_observation":
-                raise ValueError("设备连续观察任务不能绑定平台状态事件")
+                raise ValueError("Continuous device observation cannot be bound to platform state events.")
         if manifest["status"] != "stopped" or manifest.get("error"):
-            errors.append("本轮采集未正常结束：" + str(manifest.get("error") or manifest["status"]))
+            errors.append("Collection ended unexpectedly: " + str(manifest.get("error") or manifest["status"]))
         start, end = manifest["clock_start"], manifest["clock_end"]
         for clock in (start, end):
             for key in ("offset_seconds", "uncertainty_seconds", "pc_midpoint_epoch"):
                 if not math.isfinite(float(clock[key])):
-                    raise ValueError("时钟校准数据无效")
+                    raise ValueError("Invalid clock calibration data.")
             if not 0 <= clock["uncertainty_seconds"] <= 1:
-                errors.append("时钟对齐误差超过 1 秒")
+                errors.append("Clock alignment error exceeds one second.")
         drift = abs(end["offset_seconds"] - start["offset_seconds"])
         metrics["clock_offset_change_seconds"] = drift
         metrics["clock_uncertainty_seconds"] = start["uncertainty_seconds"]
         if drift > start["uncertainty_seconds"] + end["uncertainty_seconds"] + 0.25:
-            errors.append("路由器与电脑的时钟偏差在采集期间发生变化")
+            errors.append("The offset between router and host clocks changed during collection.")
         events = read_events(root)
         rows = segments_from_events(events, start)
         if not events or events[-1]["event"] != "capture_stopped" or events[-1].get("error"):
-            errors.append("缺少正常结束的采集事件")
+            errors.append("Missing collection completion event.")
         if not rows and not protocol:
-            errors.append("没有完整的手动任务区间")
+            errors.append("No complete manually marked task interval.")
         marks = [e for e in events if e["event"] == "event_mark"]
         if marks and protocol.get("mode") != "event_markers":
-            errors.append("打点事件与采集模式不一致")
+            errors.append("Event markers do not match the collection mode.")
         if protocol and rows:
-            errors.append("IoT 点事件与连续任务标签不能混用")
+            errors.append("IoT point events and continuous task labels cannot be combined.")
         if protocol:
             points = event_windows(events, manifest)
             if json.loads((root / "manual_event_windows.json").read_text(encoding="utf-8")) != points:
-                errors.append("事件窗口与原始打点不一致")
+                errors.append("Event windows differ from the original markers.")
             if protocol["mode"] == "event_markers" and not points:
-                errors.append("没有人工事件打点")
+                errors.append("No manually recorded event markers.")
             metrics.update(event_count=len(points), complete_event_windows=sum(p["input_eligible"] for p in points))
             if any(not p["input_eligible"] for p in points):
                 warnings.append("Incomplete pre/post event windows are retained but excluded from event input.")
             warnings.append("Point labels describe operator physical actions, not verified sensor-state timestamps.")
         if manifest.get("schema_version") == "manual-ground-truth-v2" and not any(
                 event["event"] == "capture_end_requested" for event in events):
-            errors.append("缺少采集结束请求时间")
+            errors.append("Missing collection stop-request time.")
         if any(row["end_reason"] not in {"operator_end", "session_stop", "operator_switch"} for row in rows):
-            errors.append("存在意外中断的任务区间")
+            errors.append("A task interval ended unexpectedly.")
         logical_end = next((e["pc_epoch"] for e in events if e["event"] == "capture_end_requested"),
                            rows[-1]["pc_end_epoch"] if rows else events[-1]["pc_epoch"])
         if start["pc_midpoint_epoch"] > events[0]["pc_epoch"] or end["pc_midpoint_epoch"] < logical_end:
-            errors.append("时钟测量没有覆盖标注区间")
+            errors.append("Clock measurements do not cover the annotation interval.")
         with (root / "labels.csv").open(encoding="utf-8-sig", newline="") as handle:
             actual = list(csv.DictReader(handle))
         expected = list(csv.DictReader(io.StringIO(csv_text(rows))))
         if actual != expected:
-            errors.append("labels.csv 与原始点击事件不一致")
+            errors.append("labels.csv differs from the original button events.")
         windows = json.loads((root / "network_capture_windows.json").read_text(encoding="utf-8"))
         if windows != network_windows(rows):
-            errors.append("流量时间窗口与原始点击事件不一致")
+            errors.append("Traffic windows differ from the original button events.")
         ip = manifest["router"]["phone_ip"]
         total, matching = 0, 0
         counts = {row["segment_id"]: 0 for row in rows}
@@ -600,7 +600,7 @@ def validate_manual_ground_truth(root: Path, manifest: dict[str, Any]):
             if ip not in {packet["src_ip"], packet["dst_ip"]}:
                 if diagnostic:
                     continue
-                errors.append("PCAP 中发现不属于目标 IP 的 IP 流量")
+                errors.append("The PCAP contains IP traffic that does not involve the target address.")
                 break
             matching += 1
             for row in rows:
@@ -608,9 +608,9 @@ def validate_manual_ground_truth(root: Path, manifest: dict[str, Any]):
                     counts[row["segment_id"]] += 1
                     break
         if not matching:
-            (warnings if diagnostic else errors).append("PCAP 没有目标设备的 IP 数据包")
+            (warnings if diagnostic else errors).append("The PCAP contains no IP packets for the target device.")
         if diagnostic and not total:
-            errors.append("整网诊断 PCAP 没有 IP 数据包")
+            errors.append("The whole-network diagnostic PCAP contains no IP packets.")
         metrics.update(capture_bytes=(root / "capture.pcap").stat().st_size,
                        decoded_ip_packets=total, device_packets=matching,
                        traffic_scope=scope, diagnostic_only=diagnostic,
