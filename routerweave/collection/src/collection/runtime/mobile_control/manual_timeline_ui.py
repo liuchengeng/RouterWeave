@@ -55,9 +55,10 @@ class TimelinePanel:
     def try_demo(self):
         if self.shell.locked():
             return
-        path = Path(__file__).resolve().parents[4] / 'configs' / 'manual_timelines' / 'parallel.example.json'
-        self.import_plan(path)
-        self.parallel_window.start_demo()
+        path = Path(__file__).resolve().parents[4] / 'examples' / 'synthetic_timeline.json'
+        window = self.import_plan(path)
+        if window is not None:
+            window.start_demo()
 
     def import_plan(self, path=None):
         if self.run and not self.run.stopped:
@@ -74,7 +75,7 @@ class TimelinePanel:
                     from .manual_parallel_ui import ParallelWindow
                     self.parallel_window = ParallelWindow(self.shell.root, self.shell.args, raw)
                     self.shell.root.withdraw()
-                    return
+                    return self.parallel_window
                 self.plans[self.shell.current_mode] = self.normalize(raw)
                 self.preview_index = 0
                 self.style.set('Timeline'); self.update()

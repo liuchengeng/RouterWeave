@@ -1000,6 +1000,33 @@
       }
     },
     {
+      "id": "manual-smart-plug",
+      "title": "Smart plug",
+      "kind": "iot",
+      "platform": "google_home",
+      "domain": "iot",
+      "category": "smart_plug",
+      "status": "ready",
+      "target": {
+        "unit": "runs",
+        "count": 1
+      },
+      "metadata": {
+        "device_id": "plug",
+        "device_mac_env": "ROUTERWEAVE_DEVICE_MAC"
+      },
+      "breakdown": [
+        {
+          "key": "power_on",
+          "label": "Power on"
+        },
+        {
+          "key": "power_off",
+          "label": "Power off"
+        }
+      ]
+    },
+    {
       "id": "govee-h7122-routine",
       "title": "govee h7122 routine",
       "kind": "iot",
@@ -1013,7 +1040,9 @@
       },
       "metadata": {
         "routine_plan_id": "govee-h7122-routine"
-      }
+      },
+      "collection_type": "iot_routine",
+      "minimum_duration_seconds": 345600
     },
     {
       "id": "meross-map100-routine",
@@ -1029,7 +1058,9 @@
       },
       "metadata": {
         "routine_plan_id": "meross-map100-routine"
-      }
+      },
+      "collection_type": "iot_routine",
+      "minimum_duration_seconds": 345600
     },
     {
       "id": "wifi-smart-cordless-kettle-routine",
@@ -1045,7 +1076,9 @@
       },
       "metadata": {
         "routine_plan_id": "wifi-smart-cordless-kettle-routine"
-      }
+      },
+      "collection_type": "iot_routine",
+      "minimum_duration_seconds": 345600
     },
     {
       "id": "xiaomi-dehumidifier-lite-routine",
@@ -1061,7 +1094,9 @@
       },
       "metadata": {
         "routine_plan_id": "xiaomi-dehumidifier-lite-routine"
-      }
+      },
+      "collection_type": "iot_routine",
+      "minimum_duration_seconds": 345600
     },
     {
       "id": "xiaomi-desktop-circulation-fan-routine",
@@ -1077,7 +1112,9 @@
       },
       "metadata": {
         "routine_plan_id": "xiaomi-desktop-circulation-fan-routine"
-      }
+      },
+      "collection_type": "iot_routine",
+      "minimum_duration_seconds": 345600
     }
   ]
 }

@@ -109,5 +109,3 @@ The latency argument order is model directory, mode, timestamp-ordered Ethernet 
 | `latency.csv` | Mode, seed, repetition, input, status, reference onset/cutoff and observed decision in relative seconds. Missing decisions remain empty. |
 | `processes.csv`, `footprint.csv` | Per-process CPU seconds, wall seconds, RSS, and model/index sizes used in the router table. |
 | `rounds.csv`, `capacity.csv` | Round due/completion times and service cost; trial duration, core count, CPU time and peak RSS. |
-
-`archive_inputs.py` is an optional importer for custodians of the original result archives. It requires explicitly supplied `--primary` and `--external` modeling roots and a new `--output` directory. It checks identities when joining rows, verifies latency-file digests and only loads the one legacy joblib prediction object after verifying its exact SHA-256. All normal scoring and example-fitting commands work without that archive. The public tables contain derived records and preserve the original holdout, coverage, and aggregation conditions.

@@ -12,7 +12,7 @@ $env:ROUTERWEAVE_SSH_KEY = Read-Host 'Path to SSH private key'
 | --- | --- |
 | `scripts/collection/collect_mobile.ps1` | Automate Android and iOS apps, record activity events, capture router traffic, and attribute packets to apps. |
 | `scripts/collection/collect_windows.ps1` | Run Windows activity plans, record foreground processes and activity intervals, and optionally capture router traffic. |
-| `scripts/collection/collect_iot.ps1` | Execute device operations defined in `configs/plans/` and record the observed responses. |
+| `scripts/collection/collect_iot.ps1` | Run a local IoT configuration and record device responses alongside router traffic. |
 | `python -m collection_core --help` | Extract activity intervals and ground truth from existing records. |
 
 The Android single-app plan for QQ Music runs for 30 minutes. Add `-Preview` to inspect the plan. For iOS, use `ios-music-single-app` and `-IosUdid`.
@@ -22,18 +22,23 @@ $serial = Read-Host 'ADB device serial'
 .\scripts\collection\collect_mobile.ps1 -CollectionTaskId android-music-single-app -AppName qqmusic -Serial $serial -RootOut runs/collection/android-music
 ```
 
-Windows can record foreground processes and capture router traffic directly. Browser automation uses Edge. Native desktop apps in a plan require the corresponding window controller. The `excluded_process_roots` list is empty by default. To exclude traffic from collection tools, add their executable names.
+Windows can record foreground processes and capture router traffic directly. The default automation example opens Notepad. Use `-Plan` to supply a Windows JSON plan with your own applications, websites, and actions. The command below records the foreground process selected by the operator.
 
 ```powershell
 .\scripts\collection\collect_windows.ps1 -CollectionTaskId windows-workstation-traffic-probe -NoAutomation -DurationSeconds 15 -EnableRouterCapture -DeviceIp (Read-Host 'Local IP address on the LAN') -RootOut runs/collection/windows-probe
 ```
 
-IoT plans read `${VARIABLE}` references from the environment. Device names, interface language, and selectors must match the installation. This Google Home plan collects one power-on and one power-off operation from a smart plug.
+The [Google Home example](examples/google_home_plug.json) records one power-on and one power-off operation. Set the plug name as displayed in Google Home and its Wi-Fi MAC address, or pass your own JSON file to `--plan`.
 
 ```powershell
-$env:ROUTERWEAVE_MEROSS_MSS110_MAC = Read-Host 'Smart plug LAN MAC address'
-.\scripts\collection\collect_iot.ps1 -CollectionTaskId iot-google-home-operations -Platform google_home -RunRoot runs/collection/google-plug -PythonModule collection.runtime.ios.iot_google_home_capture -CollectorArguments @('--plan','configs/plans/google_home_meross_plug.json','--target-valid-per-action','1')
+$env:ROUTERWEAVE_DEVICE_NAME = Read-Host 'Plug name in Google Home'
+$env:ROUTERWEAVE_DEVICE_MAC = Read-Host 'Plug Wi-Fi MAC address'
+.\scripts\collection\collect_iot.ps1 -CollectionTaskId iot-google-home-operations -Platform google_home -RunRoot runs/collection/google-home -PythonModule collection.runtime.ios.iot_google_home_capture -CollectorArguments @('--plan', 'examples/google_home_plug.json')
 ```
+
+For manual annotations, open the collection tool with `.\scripts\collection\collect_mobile.ps1 -ManualGroundTruth -EventMarkerOnly -CollectionTaskId manual-smart-plug -RootOut runs/collection/manual`. Use **Try demo** in the timeline panel to rehearse annotations without hardware. For live capture the marker matches the supplied MAC to an online router client.
+
+For scheduled IoT runs, set `ROUTERWEAVE_CONFIG_DIR` to the directory containing your own `collection_tasks.json`. Register the task with `kind: iot`, `collection_type: iot_routine`, its control platform, a positive `minimum_duration_seconds`, and a `metadata.routine_plan_id` matching the plan. Binding paths can be relative to the routine JSON file.
 
 ## Inputs and outputs
 

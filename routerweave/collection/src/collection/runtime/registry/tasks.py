@@ -16,7 +16,7 @@ from typing import Any, Iterable
 SCHEMA_VERSION = "collection-task-registry-v1"
 RUN_SCHEMA_VERSION = "collection-task-run-v1"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-DEFAULT_CONFIG_ROOT = REPOSITORY_ROOT / "configs"
+DEFAULT_CONFIG_ROOT = Path(os.environ.get("ROUTERWEAVE_CONFIG_DIR") or REPOSITORY_ROOT / "configs").resolve()
 TASK_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{2,95}$")
 RUNNABLE_STATUSES = {"ready", "collecting", "retry"}
 TERMINAL_CONFIG_STATUSES = {"complete", "cancelled"}
@@ -109,7 +109,7 @@ def _normalized_task(raw: dict[str, Any], source_path: Path) -> dict[str, Any]:
 def load_collection_tasks(config_root: str | Path = DEFAULT_CONFIG_ROOT) -> list[dict[str, Any]]:
     config_root = Path(config_root).resolve()
     source = config_root / "collection_tasks.json"
-    payload = _read_json(source, {})
+    payload = json.loads(source.read_text(encoding="utf-8-sig"))
     if not isinstance(payload, dict):
         raise ValueError(f"collection task registry must be an object: {source}")
     if payload and payload.get("schema_version") != SCHEMA_VERSION:

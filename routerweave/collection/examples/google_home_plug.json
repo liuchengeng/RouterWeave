@@ -1,7 +1,7 @@
 {
-  "experiment": "google_home_meross_mss110_actions_30x",
+  "experiment": "smart_plug_switch",
   "control_platform": "google_home",
-  "target_valid_per_action": 30,
+  "target_valid_per_action": 1,
   "controller": {
     "application_bundle_id": "com.google.Chromecast",
     "wda_url": "http://127.0.0.1:8100"
@@ -14,9 +14,9 @@
   },
   "devices": [
     {
-      "id": "meross-mss110",
-      "mac": "${ROUTERWEAVE_MEROSS_MSS110_MAC}",
-      "name": "meross smart plug",
+      "id": "plug",
+      "mac": "${ROUTERWEAVE_DEVICE_MAC}",
+      "name": "${ROUTERWEAVE_DEVICE_NAME}",
       "device_type": "smart_plug",
       "baseline_seconds": 5,
       "tail_seconds": 30,

@@ -133,6 +133,13 @@ def match_router_client(identity, clients):
 
 
 def resolve_task_identity(task, router, *, identities_path=DEFAULT_CONFIG_ROOT/"iot_device_network_identities.json"):
-    identities = json.loads(Path(identities_path).read_text(encoding="utf-8"))
-    identity = configured_identity(task, identities)
+    variable = task.get("metadata", {}).get("device_mac_env")
+    if variable:
+        mac = os.environ.get(variable, "").strip().lower()
+        if not re.fullmatch(r"(?:[0-9a-f]{2}:){5}[0-9a-f]{2}", mac):
+            raise ValueError(f"Set {variable} to the device Wi-Fi MAC address.")
+        identity = dict(mac=mac, scope="direct_device", identity_key=task["id"])
+    else:
+        identities = json.loads(Path(identities_path).read_text(encoding="utf-8"))
+        identity = configured_identity(task, identities)
     return match_router_client(identity, read_router_clients(router))

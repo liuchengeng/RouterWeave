@@ -253,7 +253,9 @@ def compile_plan(path: Path, start_at: str, *, workspace: Path = WORKSPACE) -> d
     for name, binding in controls.items():
         if not re.fullmatch(r"[a-zA-Z0-9_-]+", name):
             raise ValueError(f"Invalid control name {name!r}")
-        source = (workspace / binding["plan_path"]).resolve()
+        source = (path.parent / binding["plan_path"]).resolve()
+        if not source.is_file():
+            source = (workspace / binding["plan_path"]).resolve()
         native = load_plan(source)
         platform = native.get("control_platform")
         matches = [d for d in native["devices"] if d["id"] == binding["device_id"]]
@@ -912,6 +914,10 @@ def main(argv: list[str] | None = None) -> int:
     task = require_collection_task(args.collection_task_id, kind="iot", platform=compiled["control_platform"])
     if task.get("metadata", {}).get("routine_plan_id") != compiled["plan_id"]:
         parser.error("Registered task metadata.routine_plan_id must match this plan_id; do not reuse completed action-sample tasks")
+    if (args.purpose == "formal" and not args.capture_only
+            and (task["collection_type"] != "iot_routine"
+                 or not 0 < task["minimum_duration_seconds"] <= compiled["duration_seconds"])):
+        parser.error("Register an iot_routine task with a positive minimum duration covered by the plan")
     root = args.run_root.resolve()
     if not root.is_relative_to(WORKSPACE / "runs"):
         parser.error("New routine output must be under runs/")

@@ -138,9 +138,11 @@ class ManualGroundTruthWindow:
         self.note = tk.StringVar()
         self.screen_state = tk.StringVar(value="Unknown")
         self.tasks = {f"{t['platform_label']} · {t['title']}": t for t in load_collection_tasks()
-                      if t['id'] == args.collection_task_id or
+                      if (t['kind'] == 'manual' and t['configured_status'] in RUNNABLE_STATUSES) or
+                      (t['id'] == args.collection_task_id and t['kind'] != 'iot') or
                       (not isinstance(root, ModePanel) and t['kind'] == 'iot' and t['category'] in EVENT_TIMINGS and t['configured_status'] in RUNNABLE_STATUSES)}
-        self.task_choice = tk.StringVar(value=next((k for k, t in self.tasks.items() if t['id'] == args.collection_task_id), ""))
+        self.task_choice = tk.StringVar(value=next((k for k, t in self.tasks.items() if t['id'] == args.collection_task_id),
+                                                   next(iter(self.tasks), "")))
         self.iot_mode = tk.StringVar(value="Event marking")
         self.protocol_hint = tk.StringVar()
         self.status = tk.StringVar(value="Idle")
@@ -862,9 +864,14 @@ class IoTMarkerWindow:
             self.table.heading(key, text=title)
             self.table.column(key, width=width, minwidth=80)
         self.table.pack(fill="both", expand=True)
-        if self.platforms:
-            self.platform.set("Apple Home" if "Apple Home" in self.platforms else next(iter(self.platforms)))
-            self.select_platform()
+        if not self.platforms:
+            self.phase_text.set("No IoT actions configured")
+            self.guide.set("Add an IoT task with an action breakdown to collection_tasks.json and reopen the tool.")
+            for button in (self.capture_button, self.stop_button, self.mark_button):
+                button.configure(state="disabled")
+            return
+        self.platform.set("Apple Home" if "Apple Home" in self.platforms else next(iter(self.platforms)))
+        self.select_platform()
         key_tag = f"IoTMarkerSpace{id(self)}"
         root.bind_class(key_tag, "<KeyPress-space>", self.press_space)
         root.bind_class(key_tag, "<KeyRelease-space>", self.release_space)
