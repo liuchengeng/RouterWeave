@@ -1,22 +1,16 @@
 # RouterWeave
 
-RouterWeave is a router-side observation framework that combines cross-platform traffic collection, task-adaptive processing, and unified activity records for household applications. It uses encrypted traffic at the home router to observe sustained activities on Android, iOS, and Windows devices and discrete operations on IoT devices.
+RouterWeave is a router-side observation framework for cross-platform device activity. It uses encrypted traffic at the home router to reconstruct a shared activity history that captures both sustained activities, such as video streaming, and discrete IoT operations, such as switching on an appliance.
 
 ## Pipeline
 
-**Observation units.** All devices share a single traffic observation point at the home router. For sustained activities, sliding windows capture traffic across concurrent connections. For intermittent IoT operations, a device-specific localizer groups the packets associated with each operation. Platform-specific logs and controller events supply ground truth during collection.
+**Shared traffic acquisition.** During [collection](routerweave/collection/README.md), router captures are aligned with device logs and controller events to establish ground truth. At inference time, [traffic processing](routerweave/traffic/README.md) extracts packet timing, sizes, directions, and available service metadata for each device from the router capture.
 
-**Cross-layer evidence.** The activity model encodes packet timing, directional byte counts, and connection dynamics. Feature-wise linear modulation (FiLM) incorporates service context from visible protocol metadata, with a learned gate controlling its contribution. For IoT operations, a classifier shared across devices labels the packet groups selected by the localizer.
+**Task-adaptive inference.** The temporal structure of the activity determines how RouterWeave groups and interprets packets.
 
-**Activity record lifecycle.** The record manager creates, updates, and closes records in a shared device history. Each record associates a device and an activity label with an interval for sustained activity or a transition time for a discrete operation. An appliance’s inferred state can therefore persist through periods of network silence.
+- [Sustained activities](routerweave/recognition/activity/README.md) on Android, iOS, and Windows can span several concurrent connections. The model analyzes these connections together in sliding windows. Reliability-gated feature-wise linear modulation (FiLM) controls how strongly service metadata influences the traffic representation.
+- [IoT operations](routerweave/recognition/iot/README.md) often produce brief exchanges interleaved with background traffic. A device-specific localizer selects the packets associated with an operation, and a classifier shared across devices assigns its label.
 
-**Application interface.** The framework defines a common interface for device discovery, current activity, historical queries, and record updates. The Screen Time case study aggregates activity intervals across platforms. The appliance energy case study integrates power over the time spent in each inferred state.
+**Unified activity records.** The record manager opens, extends, and closes activity intervals for each device. It records IoT operations as transitions, allowing an inferred state to persist between events. Applications can query the resulting device history or subscribe to updates. In the [case studies](routerweave/applications/README.md), Screen Time sums interval durations by activity, while appliance energy estimation integrates power over the time spent in each state.
 
-## Repository structure
-
-- [Data collection and ground truth](routerweave/collection/README.md)
-- [Traffic processing](routerweave/traffic/README.md)
-- [Application activity recognition](routerweave/recognition/activity/README.md)
-- [IoT operation recognition](routerweave/recognition/iot/README.md)
-- [Screen Time and appliance energy estimation](routerweave/applications/README.md)
-- [Comparisons, ablations, and router benchmarks](routerweave/evaluation/README.md)
+The [evaluation module](routerweave/evaluation/README.md) includes recognition baselines, ablation studies, and router benchmarks.
