@@ -19,11 +19,11 @@ The [evaluation module](routerweave/evaluation/README.md) includes recognition b
 
 ```text
 routerweave/
-├── collection/       Device automation, router capture, and ground-truth annotation
-├── traffic/          Packet and flow extraction from router captures
+├── collection/
+├── traffic/
 ├── recognition/
-│   ├── activity/     Window-based activity recognition for phones and PCs
-│   └── iot/          Packet localization and device operation classification
-├── applications/     Screen Time reconstruction and appliance energy estimation
-└── evaluation/       Baseline comparisons, ablations, and native router benchmarks
+│   ├── activity/
+│   └── iot/
+├── applications/
+└── evaluation/
 ```
