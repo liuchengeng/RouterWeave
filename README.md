@@ -1,12 +1,14 @@
 # RouterWeave
 
-RouterWeave identifies periods of application use on phones and PCs and individual operations on smart-home devices from encrypted traffic captured at a home router. The router observes packet headers and, when available, service names from DNS and TLS handshakes. Device logs and controller events provide the reference labels for the experiments.
+RouterWeave reconstructs a household’s device activity history from packet metadata observed at its router. An activity record identifies the device, what it was doing, and when. A video session occupies an interval. A fan switching on is recorded at a single instant, yet the resulting state can persist long after the last packet.
 
-## Recognition methods
+## Pipeline
 
-For Android, iOS, and Windows, RouterWeave classifies 30 seconds of traffic at a time across all observed connections from one device. The model combines packet timing, sizes, and directions with the available service metadata. It produces an activity estimate every five seconds. The Screen Time study uses successive estimates to recover activity intervals and measure their duration.
+**Capture and ground truth.** A capture at the home router provides packet times, sizes, directions, and connection identifiers across devices. DNS and TLS handshakes supply service names when visible. During collection, device logs and controller events establish independent reference labels.
 
-A single IoT operation can span several exchanges interleaved with background traffic. A localizer trained for each device estimates the operation’s boundaries and selects the packets that belong to it. A classifier shared across devices assigns the operation label. The appliance energy study uses directional events such as power-on and power-off to reconstruct time in each state and estimate consumption in watt-hours.
+**Activity inference.** For Android, iOS, and Windows, each estimate draws on 30 seconds of concurrent connections from one device, with a new estimate every five seconds. A learned reliability gate controls how strongly service metadata modifies the traffic representation. For IoT devices, a device-specific localizer selects the packets associated with a brief operation. A classifier shared across devices labels the selected exchange.
+
+**Activity records and applications.** Screen Time joins successive estimates into activity intervals. It can report a switch immediately or wait for later observations to confirm its timing. The appliance study reconstructs operating states from directional events such as power-on and power-off, then integrates power over time in each state to estimate watt-hours. In the paper’s architecture, applications can query current activity, retrieve device histories, or subscribe to record updates. The case-study code implements interval reconstruction and energy estimation.
 
 ## Repository structure
 
@@ -17,4 +19,4 @@ A single IoT operation can span several exchanges interleaved with background tr
 - [Screen Time and appliance energy estimation](routerweave/applications/README.md)
 - [Comparisons, ablations, and router benchmarks](routerweave/evaluation/README.md)
 
-The IoT classifier was trained on the recordings available at fitting time, which cover part of the collection plan. The fourth day of the appliance energy evaluation used replayed data.
+IoT collection is incomplete. The released classifier was trained on the subset available at fitting time. The fourth day of the appliance energy evaluation is a replay.
