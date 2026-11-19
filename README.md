@@ -1,6 +1,6 @@
 # RouterWeave
 
-RouterWeave is a router-side observation framework for cross-platform device activity. It uses encrypted traffic at the home router to reconstruct a shared activity history that captures both sustained activities, such as video streaming, and discrete IoT operations, such as switching on an appliance.
+RouterWeave is a router-side observation framework for cross-platform device activity.
 
 ## Pipeline
 
