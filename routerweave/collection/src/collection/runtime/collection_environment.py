@@ -16,21 +16,19 @@ import time
 PROFILE = "uncleared_background_v1"
 CONTINUATION_PROFILE = "retained_background_v2"
 ALIASES = {"qq_music": "qqmusic", "netease_music": "netease"}
-# The v1 recipe stores the original instruction text and is compared to archived runs.
 SOURCES = (
-    ("music", "qqmusic", "netease", "播放歌曲，结束后暂停并退到后台"),
-    ("browsing", "baidu", "csdn", "打开内容，阅读和滚动，保留页面退到后台"),
-    ("short_video", "douyin", "kuaishou", "播放并滑动一次，退到后台并确认播放停止"),
-    ("long_video", "bilibili", "iqiyi", "播放视频，结束后暂停并退到后台"),
-    ("live_stream", "douyu", "huya", "观看直播，正常退出直播间后退到后台"),
+    ("music", "qqmusic", "netease", "Play a song, pause playback, and move the app to the background."),
+    ("browsing", "baidu", "csdn", "Open content, read and scroll, and leave the page open in the background."),
+    ("short_video", "douyin", "kuaishou", "Play a video and swipe once, then background the app and verify that playback stops."),
+    ("long_video", "bilibili", "iqiyi", "Play a video, pause playback, and move the app to the background."),
+    ("live_stream", "douyu", "huya", "Watch a live stream, leave the stream, and move the app to the background."),
 )
-OPERATOR_INSTRUCTIONS = {
-    "music": "Play a song, pause playback, and move the app to the background.",
-    "browsing": "Open content, read and scroll, and leave the page open in the background.",
-    "short_video": "Play a video and swipe once, then background the app and verify that playback stops.",
-    "long_video": "Play a video, pause playback, and move the app to the background.",
-    "live_stream": "Watch a live stream, leave the stream, and move the app to the background.",
-}
+
+
+def _registered_apps(task):
+    if task.get("breakdown"):
+        return {row["key"] for row in task["breakdown"]}
+    return set(task["metadata"].get("preparation_orders", {}))
 
 
 def environment_recipe(task: dict | None, target: str, *, profile: str | None = None) -> dict | None:
@@ -42,7 +40,7 @@ def environment_recipe(task: dict | None, target: str, *, profile: str | None = 
     if profile not in {registered_profile, metadata.get("continuation_profile")}:
         raise ValueError(f"Unknown collection environment: {profile}")
     target = ALIASES.get(target, target)
-    if target not in {row["key"] for row in task.get("breakdown", [])}:
+    if target not in _registered_apps(task):
         raise ValueError("Target app does not belong to the registered supplementary task")
     if profile == CONTINUATION_PROFILE:
         if task["platform"] not in {"android", "ios", "windows"}:
@@ -70,10 +68,10 @@ def environment_recipe(task: dict | None, target: str, *, profile: str | None = 
         from .mobile_control.catalog import MobileAppCatalog
         from .mobile_control.status import Platform
         catalog = MobileAppCatalog.from_repository()
-        apps = {row["key"] for entry in load_collection_tasks()
+        apps = {app for entry in load_collection_tasks()
                 if entry["platform"] == "android" and entry["category"] != "gaming"
                 and entry.get("metadata", {}).get("environment_profile") == PROFILE
-                for row in entry["breakdown"]}
+                for app in _registered_apps(entry)}
         recipe["reset_packages"] = sorted(catalog.require(Platform.ANDROID, app).app_id for app in apps)
     return recipe
 
@@ -107,7 +105,7 @@ def prepare_environment(root: Path, recipe: dict, *, input_fn=None, clock=None, 
                     raise RuntimeError("Experiment app reset failed independent verification")
             input_fn("Preserve background apps and caches. Resolve login issues first. Press Enter to begin or Ctrl+C to cancel.")
             for index, step in enumerate(recipe["steps"]):
-                input_fn(f"[{index + 1}/5] Open {step['app']}. {OPERATOR_INSTRUCTIONS[step['category']]} "
+                input_fn(f"[{index + 1}/5] Open {step['app']}. {step['instruction']} "
                          "Press Enter to start timing when the content is available.")
                 started = emit("content_started", index=index, app=step["app"])
                 while True:
@@ -140,6 +138,23 @@ def _reset_verified(result: dict, packages: list[str]) -> bool:
             and all(value == [] for value in remaining.values()))
 
 
+def _matches_registered_recipe(expected, recorded):
+    """Compare the registered conditions while allowing localized operator instructions."""
+    if expected == recorded:
+        return True
+    if not expected or expected.get("profile") != PROFILE or not isinstance(recorded, dict):
+        return False
+    steps = recorded.get("steps")
+    if not isinstance(steps, list) or len(steps) != len(expected["steps"]):
+        return False
+    normalized = []
+    for step, reference in zip(steps, expected["steps"]):
+        if not isinstance(step, dict) or not isinstance(step.get("instruction"), str) or not step["instruction"].strip():
+            return False
+        normalized.append({**step, "instruction": reference["instruction"]})
+    return {**recorded, "steps": normalized} == expected
+
+
 def validate_environment(root: Path, recipe: dict | None, *, foreground_start=None) -> list[str]:
     """Recompute operator-labelled preparation from its original event log."""
     if recipe is None:
@@ -147,7 +162,7 @@ def validate_environment(root: Path, recipe: dict | None, *, foreground_start=No
     try:
         from .registry.tasks import load_collection_tasks
         task = next(t for t in load_collection_tasks() if t["id"] == recipe["task_id"])
-        if environment_recipe(task, recipe["target"]) != recipe:
+        if not _matches_registered_recipe(environment_recipe(task, recipe["target"]), recipe):
             return ["environment recipe differs from its registered task"]
         rows = [json.loads(line) for line in (Path(root) / "environment_events.jsonl")
                 .read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -204,14 +219,14 @@ def validate_run_environment(root: Path, target: str, recorded: dict | None,
         task_id = json.loads(sidecar.read_text(encoding="utf-8")).get("task_id") if sidecar.exists() else None
         task = next((t for t in load_collection_tasks() if t["id"] == task_id), None)
         expected = environment_recipe(task, target, profile=(recorded or {}).get("profile"))
-        if expected != recorded:
+        if not _matches_registered_recipe(expected, recorded):
             return ["collection environment does not match the registered task"]
         if expected and expected["profile"] == CONTINUATION_PROFILE:
             return _validate_continuation(root, expected, foreground_start, (*_seen, root), _archive)
         if (root / "environment_recovery.json").exists():
             if expected is None:
                 return ["environment recovery requires a supplementary registration"]
-            return _validate_recovery(root, expected, foreground_start, (*_seen, root), _archive)
+            return _validate_recovery(root, recorded, foreground_start, (*_seen, root), _archive)
         manifest_path = root / ("windows_capture_manifest.json" if expected and expected.get("platform") == "windows" else "collection_manifest.json")
         if manifest_path.exists() and json.loads(manifest_path.read_text(encoding="utf-8")).get("resume_environment_from"):
             return ["environment recovery evidence is missing"]
