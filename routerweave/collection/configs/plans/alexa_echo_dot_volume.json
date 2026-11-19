@@ -1,0 +1,118 @@
+{
+  "experiment": "alexa_echo_dot_4th_gen_idle_volume_30x",
+  "control_platform": "alexa",
+  "target_valid_per_action": 30,
+  "launch_wait_seconds": 3,
+  "max_consecutive_failures": 2,
+  "router": {
+    "host": "${ROUTERWEAVE_ROUTER_HOST}",
+    "user": "root",
+    "interface": "br-lan",
+    "identity_file": "${ROUTERWEAVE_SSH_KEY}"
+  },
+  "controller": {
+    "identifier": "${IOS_UDID}",
+    "application": "Amazon Alexa",
+    "application_bundle_id": "com.amazon.echo",
+    "wda_url": "http://127.0.0.1:8100"
+  },
+  "parameter_policy": {
+    "smart_speaker_volume": {
+      "random_seed": 2026083101,
+      "low_range_percent": [
+        10,
+        40
+      ],
+      "high_range_percent": [
+        60,
+        90
+      ],
+      "minimum_change_percent": 20,
+      "step_percent": 5
+    }
+  },
+  "devices": [
+    {
+      "id": "amazon-echo-dot-4th-gen",
+      "name": "Living Room Echo Dot",
+      "brand": "Amazon",
+      "model": "Echo Dot (4th generation)",
+      "device_type": "smart_speaker",
+      "ip": "${ROUTERWEAVE_AMAZON_ECHO_DOT_4TH_GEN_IP}",
+      "mac": "${ROUTERWEAVE_AMAZON_ECHO_DOT_4TH_GEN_MAC}",
+      "actions": [
+        "volume_up",
+        "volume_down"
+      ],
+      "open_wait_seconds": 8,
+      "baseline_seconds": 5,
+      "tail_seconds": 30,
+      "poll_seconds": 5,
+      "state_timeout_seconds": 30,
+      "volume_tolerance": 10,
+      "volume_command_attempts": 3,
+      "volume_attempt_timeout_seconds": 12,
+      "max_consecutive_failures": 2,
+      "ui": {
+        "page_condition": {
+          "all": [
+            {
+              "selector": {
+                "type": "XCUIElementTypeStaticText",
+                "name": "mosaic.text",
+                "label": "Living Room Echo Dot"
+              }
+            },
+            {
+              "selector": {
+                "type": "XCUIElementTypeOther",
+                "name_prefix": "EFD_BottomSheet_volume-slider_",
+                "label": "Volume"
+              }
+            }
+          ]
+        },
+        "idle_condition": {
+          "all": [
+            {
+              "selector": {
+                "type": "XCUIElementTypeStaticText",
+                "name": "mosaic.text",
+                "label": "Living Room Echo Dot"
+              }
+            },
+            {
+              "selector": {
+                "type": "XCUIElementTypeOther",
+                "name_prefix": "EFD_BottomSheet_volume-slider_",
+                "label": "Volume"
+              }
+            },
+            {
+              "selector": {
+                "type": "XCUIElementTypeOther",
+                "name": "EFDBottomSheet_OnlineView"
+              }
+            }
+          ]
+        },
+        "close_selector": {
+          "type": "XCUIElementTypeButton",
+          "name": "mosaic.bottom-sheet.modal_dismiss_overlay"
+        },
+        "volume": {
+          "selector": {
+            "type": "XCUIElementTypeOther",
+            "name_prefix": "EFD_BottomSheet_volume-slider_",
+            "label": "Volume"
+          },
+          "mode": "linear",
+          "orientation": "horizontal",
+          "high_at_start": false,
+          "edge_margin_fraction": 0.04,
+          "duration_seconds": 0.8
+        }
+      }
+    }
+  ]
+}

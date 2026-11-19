@@ -1,0 +1,86 @@
+{
+  "experiment": "map100_apple_power_formal_01",
+  "control_platform": "apple_home",
+  "target_valid_per_action": 10,
+  "router": {
+    "host": "${ROUTERWEAVE_ROUTER_HOST}",
+    "user": "root",
+    "interface": "br-lan",
+    "identity_file": "${ROUTERWEAVE_SSH_KEY}",
+    "capture_filter": "ether host ${ROUTERWEAVE_MEROSS_MAP100_MAC}"
+  },
+  "controller": {
+    "identifier": "${IOS_UDID}",
+    "application": "Apple Home",
+    "application_bundle_id": "com.apple.Home",
+    "wda_url": "http://127.0.0.1:8100",
+    "snapshot_max_depth": 50
+  },
+  "detail_page_marker": "DCPV2::ControlPage",
+  "navigation": {
+    "device_list_marker": "DevicePageSearchButton",
+    "back_wait_seconds": 2
+  },
+  "devices": [
+    {
+      "id": "meross-map100",
+      "name": "meross Smart Wi-Fi Air Purifier",
+      "brand": "Meross",
+      "model": "MAP100",
+      "device_type": "air_purifier",
+      "observed_via": "direct_device",
+      "ip": "${ROUTERWEAVE_MEROSS_MAP100_IP}",
+      "mac": "${ROUTERWEAVE_MEROSS_MAP100_MAC}",
+      "view": "detail",
+      "navigation_mode": "semantic_detail",
+      "control_element_name": "PowerControl::TouchArea",
+      "state_element_name": "PowerControl::StateText",
+      "states": {
+        "on": [
+          "开"
+        ],
+        "off": [
+          "关"
+        ]
+      },
+      "actions": [
+        {
+          "name": "power_on",
+          "from": "off",
+          "to": "on"
+        },
+        {
+          "name": "power_off",
+          "from": "on",
+          "to": "off"
+        }
+      ],
+      "baseline_seconds": 5,
+      "state_timeout_seconds": 30,
+      "poll_seconds": 3,
+      "tail_seconds": 30,
+      "fresh_precondition_state": true,
+      "allow_precondition_normalization": false,
+      "verify_state_after_reopen": true,
+      "inter_action_cooldown_seconds": 0,
+      "detail_page_timeout_seconds": 15,
+      "state_view": "detail_slider",
+      "tile_name": "LivingRoom-merossSmartWi-FiAirPurifier-TileCell",
+      "detail_slider": {
+        "label": "空气净化器"
+      },
+      "detail_button": {
+        "name": "AccessoryControl.service-806AF695-8404-5833-B8A8-F8B567B02AB6.binary.LargeToggleButton",
+        "state_values": {
+          "on": [
+            "关闭"
+          ],
+          "off": [
+            "打开"
+          ]
+        }
+      },
+      "max_consecutive_failures": 1
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "schema_version": "iot-routine-v1",
+  "plan_id": "xiaomi-dehumidifier-lite-routine",
+  "duration_seconds": 345600,
+  "max_lateness_seconds": 900,
+  "tick_seconds": 5,
+  "health_seconds": 30,
+  "share_controller": true,
+  "controls": {
+    "power": {
+      "plan_path": "configs/plans/bindings/xiaomi-dehumidifier-lite-01-power.json",
+      "device_id": "xiaomi-dehumidifier-lite-01"
+    }
+  },
+  "initial_states": [],
+  "actions": {
+    "power_on": {
+      "control": "power",
+      "target": "on"
+    },
+    "power_off": {
+      "control": "power",
+      "target": "off"
+    }
+  },
+  "events": [
+    {
+      "day": 1,
+      "time": "08:15",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "10:40",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "13:05",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "18:20",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "22:10",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "09:10",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "11:30",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "17:45",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "21:30",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "08:40",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "12:20",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "19:10",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "22:45",
+      "actions": [
+        "power_off"
+      ]
+    }
+  ]
+}

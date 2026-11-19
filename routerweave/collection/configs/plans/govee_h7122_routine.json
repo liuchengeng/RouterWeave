@@ -1,0 +1,171 @@
+{
+  "schema_version": "iot-routine-v1",
+  "plan_id": "govee-h7122-routine",
+  "duration_seconds": 345600,
+  "max_lateness_seconds": 120,
+  "tick_seconds": 5,
+  "health_seconds": 30,
+  "controls": {
+    "power": {
+      "plan_path": "configs/plans/bindings/govee-h7122-power.json",
+      "device_id": "govee-h7122"
+    },
+    "fan": {
+      "plan_path": "configs/plans/bindings/govee-h7122-fan.json",
+      "device_id": "govee-h7122"
+    }
+  },
+  "initial_states": [
+    {
+      "control": "power",
+      "state": "off"
+    }
+  ],
+  "actions": {
+    "power_on": {
+      "control": "power",
+      "target": "on"
+    },
+    "power_off": {
+      "control": "power",
+      "target": "off"
+    },
+    "fan_speed_up": {
+      "control": "fan",
+      "relative": 1,
+      "state_order": [
+        "g1",
+        "g2",
+        "g3"
+      ],
+      "requires": [
+        {
+          "control": "power",
+          "state": "on"
+        }
+      ]
+    },
+    "fan_speed_down": {
+      "control": "fan",
+      "relative": -1,
+      "state_order": [
+        "g1",
+        "g2",
+        "g3"
+      ],
+      "requires": [
+        {
+          "control": "power",
+          "state": "on"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "day": 1,
+      "time": "08:00",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "08:03",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "23:00",
+      "actions": [
+        "fan_speed_down"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "08:00",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "22:00",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "22:03",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "23:20",
+      "actions": [
+        "fan_speed_down"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "08:00",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "13:10",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "13:13",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "13:40",
+      "actions": [
+        "fan_speed_down"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "14:30",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "21:50",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "21:53",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "23:10",
+      "actions": [
+        "fan_speed_down"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "experiment": "alexa_zemismart_zm82a_curtain_30x",
+  "control_platform": "alexa",
+  "target_valid_per_action": 30,
+  "router": {
+    "host": "${ROUTERWEAVE_ROUTER_HOST}",
+    "user": "root",
+    "interface": "br-lan",
+    "identity_file": "${ROUTERWEAVE_SSH_KEY}",
+    "capture_filter": "not (host ${ROUTERWEAVE_WORKSTATION_IP} and tcp port 22)"
+  },
+  "controller": {
+    "identifier": "${IOS_UDID}",
+    "application": "Amazon Alexa",
+    "application_bundle_id": "com.amazon.echo",
+    "wda_url": "http://127.0.0.1:8100"
+  },
+  "detail_page_marker": "DCPV2::ControlPage",
+  "navigation": {
+    "device_list_marker": "DevicePageSearchButton",
+    "back_tap": {
+      "x": 30,
+      "y": 42
+    },
+    "back_wait_seconds": 3
+  },
+  "devices": [
+    {
+      "id": "zemismart-smart-curtain",
+      "name": "Living Room blind",
+      "brand": "Zemismart Technology Limited",
+      "model": "ZM82A",
+      "device_type": "smart_curtain",
+      "observed_via": "direct_device",
+      "ip": "${ROUTERWEAVE_ZEMISMART_SMART_CURTAIN_IP}",
+      "mac": "${ROUTERWEAVE_ZEMISMART_SMART_CURTAIN_MAC}",
+      "view": "detail",
+      "navigation_mode": "semantic_detail",
+      "range_control_name": "RangeControl::Normal",
+      "state_percent_ranges": {
+        "open": [
+          0,
+          2
+        ],
+        "closed": [
+          98,
+          100
+        ]
+      },
+      "state_fractions": {
+        "open": 0.02,
+        "closed": 0.98
+      },
+      "gesture_type": "tap",
+      "states": {
+        "closed": [],
+        "open": []
+      },
+      "actions": [
+        {
+          "name": "curtain_close",
+          "from": "open",
+          "to": "closed"
+        },
+        {
+          "name": "curtain_open",
+          "from": "closed",
+          "to": "open"
+        }
+      ],
+      "baseline_seconds": 5,
+      "state_timeout_seconds": 120,
+      "poll_seconds": 10,
+      "tail_seconds": 30,
+      "inter_action_cooldown_seconds": 0
+    }
+  ]
+}

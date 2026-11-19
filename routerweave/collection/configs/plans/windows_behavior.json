@@ -1,0 +1,904 @@
+{
+  "schema_version": "windows-behavior-plan-v1",
+  "platform": "windows",
+  "behavior_label": "other",
+  "seed": 20260820,
+  "excluded_process_roots": [],
+  "defaults": {
+    "duration_seconds": 300,
+    "session_min_seconds": 20,
+    "session_max_seconds": 60,
+    "settle_seconds": 2,
+    "action_pause_min_seconds": 0.7,
+    "action_pause_max_seconds": 3.0,
+    "buffer_seconds": 3,
+    "pre_roll_seconds": 0,
+    "post_roll_seconds": 0,
+    "min_actions_per_session": 1,
+    "min_usage_seconds": 5,
+    "foreground_match_min_ratio": 0.5
+  },
+  "categories": [
+    {
+      "id": "live_streaming",
+      "display_name": "Live Streaming",
+      "media_probe": {
+        "required": false,
+        "observe_seconds": 2.6,
+        "min_advance_seconds": 0.75
+      },
+      "weight": 14,
+      "session_min_seconds": 45,
+      "session_max_seconds": 120,
+      "targets": [
+        {
+          "name": "twitch",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.twitch.tv/directory/all"
+          ],
+          "semantic_binding": {
+            "content_path_pattern": "^/(?!directory$|login$|signup$)[A-Za-z0-9_]+$",
+            "media_identity_source": "page_path",
+            "media_selector": ".video-ref video",
+            "paused_marker_selector": ".video-ref button[data-a-target='player-play-pause-button'][data-a-player-state='paused']",
+            "nonblocking_dialog_selectors": [
+              "[role=\"dialog\"][aria-modal=\"false\"].react-modal__content",
+              "[role=\"dialog\"][aria-labelledby=\"popover-extensions-header\"][direction=\"top-right\"]"
+            ],
+            "controls": {
+              "ensure_paused": {
+                "selector": ".video-ref button[data-a-target='player-play-pause-button']",
+                "selection": "unique",
+                "identity_attribute": "aria-label",
+                "reveal_hover_selector": ".video-ref"
+              },
+              "ensure_playing": {
+                "selector": ".video-ref button[data-a-target='player-play-pause-button']",
+                "selection": "unique",
+                "identity_attribute": "aria-label",
+                "reveal_hover_selector": ".video-ref"
+              },
+              "switch_live_room": {
+                "selector": "nav [role='group'][aria-label$='的观众也喜欢'] a.side-nav-card[href]",
+                "selection": "random",
+                "href_path_pattern": "^/(?!directory$|login$|signup$)[A-Za-z0-9_]+$"
+              },
+              "enter_live_room": {
+                "selector": "main a[data-a-target=\"preview-card-image-link\"]",
+                "selection": "random",
+                "href_path_pattern": "^/(?!directory$|login$|signup$)[A-Za-z0-9_]+$"
+              }
+            }
+          }
+        },
+        {
+          "name": "douyu",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.douyu.com"
+          ],
+          "semantic_binding": {
+            "content_path_pattern": "^/[0-9]+$",
+            "entry_tracking_query_keys": [
+              "dyshid"
+            ],
+            "media_selector": "#js-player-video-first video",
+            "media_identity_source": "page_path",
+            "reveal_media_viewport": true,
+            "controls": {
+              "ensure_paused": {
+                "selector": "#js-player-controlbar i:has(clipPath[id^='pause_svg'])",
+                "reveal_hover_selector": "#js-player-video-first"
+              },
+              "ensure_playing": {
+                "selector": "#js-player-controlbar i:has(clipPath[id^='play_svg'])",
+                "reveal_hover_selector": "#js-player-video-first"
+              },
+              "switch_live_room": {
+                "selector": "a[class*='room__']:not([class*='active__'])",
+                "selection": "random",
+                "same_tab": true,
+                "browser_use_input": "navigate_visible_link",
+                "reveal_steps": [
+                  {
+                    "action": "click",
+                    "selector": "button.Header-toggle-btn",
+                    "skip_if_visible": "a[class*='link__'][href='/directory/myFollow']:has(> strong)"
+                  },
+                  {
+                    "action": "hover",
+                    "selector": "a[class*='link__'][href='/directory/myFollow']:has(> strong)"
+                  }
+                ],
+                "href_path_pattern": "^/[0-9]+$"
+              },
+              "enter_live_room": {
+                "selector": "a[class*='room__']",
+                "selection": "random",
+                "same_tab": true,
+                "browser_use_input": "navigate_visible_link",
+                "reveal_steps": [
+                  {
+                    "action": "click",
+                    "selector": "button.Header-toggle-btn",
+                    "skip_if_visible": "a[class*='link__'][href='/directory/myFollow']:has(> strong)"
+                  },
+                  {
+                    "action": "hover",
+                    "selector": "a[class*='link__'][href='/directory/myFollow']:has(> strong)"
+                  }
+                ],
+                "href_path_pattern": "^/[0-9]+$"
+              }
+            }
+          }
+        },
+        {
+          "name": "huya",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.huya.com"
+          ],
+          "semantic_binding": {
+            "content_path_pattern": "^/[0-9]{3,}$",
+            "media_selector": "#hy-video",
+            "reveal_media_viewport": true,
+            "media_identity_source": "page_path",
+            "media_progress_metric": "decoded_frames",
+            "controls": {
+              "ensure_paused": {
+                "selector": "#player-btn",
+                "selection": "unique",
+                "identity_attribute": "title",
+                "reveal_steps": [
+                  {
+                    "action": "hover",
+                    "selector": "#player-mouse-event-wrap"
+                  }
+                ]
+              },
+              "ensure_playing": {
+                "selector": "#player-btn",
+                "selection": "unique",
+                "identity_attribute": "title",
+                "reveal_steps": [
+                  {
+                    "action": "hover",
+                    "selector": "#player-mouse-event-wrap"
+                  }
+                ]
+              },
+              "switch_live_room": {
+                "selector": "[class*='BrowseHistory--'] a[href]:has(em.animation-living)",
+                "selection": "random",
+                "same_tab": true,
+                "browser_use_input": "navigate_visible_link",
+                "exclude_current": true,
+                "reveal_steps": [
+                  {
+                    "action": "hover",
+                    "selector": "a[class*='NavItemHd--']:has(i[class*='NavIcon-history--'])"
+                  }
+                ],
+                "href_path_pattern": "^/[0-9]{3,}$"
+              },
+              "enter_live_room": {
+                "selector": ".game-classify-list a.remen-item[href]",
+                "selection": "random",
+                "same_tab": true,
+                "browser_use_input": "navigate_visible_link",
+                "href_path_pattern": "^/[0-9]{3,}$"
+              }
+            }
+          }
+        }
+      ],
+      "actions": [
+        {
+          "type": "idle_read",
+          "weight": 65
+        },
+        {
+          "type": "scroll_down",
+          "weight": 12
+        },
+        {
+          "type": "mouse_move",
+          "weight": 13
+        },
+        {
+          "type": "page_down",
+          "weight": 5
+        },
+        {
+          "type": "back",
+          "weight": 5
+        }
+      ]
+    },
+    {
+      "id": "long_form_video",
+      "display_name": "Long-form Video",
+      "media_probe": {
+        "required": false,
+        "observe_seconds": 2.6,
+        "min_advance_seconds": 0.75
+      },
+      "weight": 18,
+      "session_min_seconds": 60,
+      "session_max_seconds": 180,
+      "targets": [
+        {
+          "name": "youtube",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.youtube.com"
+          ],
+          "semantic_binding": {
+            "content_path_pattern": "^/watch$",
+            "media_selector": "#movie_player video",
+            "transition_timeout_seconds": 25,
+            "controls": {
+              "enter_long_video": {
+                "selector": "a.ytLockupViewModelContentImage[href*=\"/watch\"]",
+                "selection": "random",
+                "href_path_pattern": "^/watch$"
+              },
+              "ensure_paused": {
+                "selector": "#movie_player button.ytp-play-button[aria-label^='Pause']",
+                "selection": "unique",
+                "identity_attribute": "aria-label",
+                "reveal_hover_selector": "#movie_player",
+                "reveal_hover_control": true
+              },
+              "ensure_playing": {
+                "selector": "#movie_player button.ytp-play-button[aria-label^='Play']",
+                "selection": "unique",
+                "identity_attribute": "aria-label",
+                "reveal_hover_selector": "#movie_player",
+                "reveal_hover_control": true
+              },
+              "switch_long_video": {
+                "selector": "a.ytLockupViewModelContentImage[href*=\"/watch\"]",
+                "selection": "random",
+                "href_path_pattern": "^/watch$",
+                "reveal": "scroll_down"
+              }
+            }
+          }
+        },
+        {
+          "name": "bilibili",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.bilibili.com"
+          ],
+          "semantic_binding": {
+            "content_path_pattern": "^/video/BV[0-9A-Za-z]+/?$",
+            "controls": {
+              "ensure_paused": {
+                "selector": ".bpx-player-ctrl-play",
+                "selection": "unique",
+                "identity_attribute": "aria-label"
+              },
+              "ensure_playing": {
+                "selector": ".bpx-player-ctrl-play",
+                "selection": "unique",
+                "identity_attribute": "aria-label"
+              },
+              "switch_long_video": {
+                "selector": "a.video-awesome-img[href*=\"/video/BV\"]",
+                "selection": "random",
+                "href_path_pattern": "^/video/BV[0-9A-Za-z]+/?$",
+                "same_tab": true,
+                "browser_use_input": "navigate_visible_link"
+              },
+              "enter_long_video": {
+                "selector": "main a[href*=\"/video/BV\"]",
+                "selection": "random",
+                "href_path_pattern": "^/video/BV[0-9A-Za-z]+/?$",
+                "same_tab": true,
+                "browser_use_input": "navigate_visible_link"
+              }
+            }
+          }
+        },
+        {
+          "name": "iqiyi",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.iqiyi.com/"
+          ],
+          "semantic_binding": {
+            "content_path_pattern": "^/v_[0-9A-Za-z]+\\.html$",
+            "media_selector": "video.inner-video",
+            "media_identity_source": "page_path",
+            "transition_timeout_seconds": 25,
+            "controls": {
+              "enter_long_video": {
+                "selector": "[class*='flexVideoList_flexTilesItem'] a[href*='/v_']:has([data-ai-entity='卡片标题'])",
+                "selection": "random",
+                "same_tab": true,
+                "browser_use_input": "navigate_visible_link",
+                "reveal": "scroll_down",
+                "href_path_pattern": "^/v_[0-9A-Za-z]+\\.html$"
+              },
+              "ensure_paused": {
+                "selector": "[class*='playerButtons_pauseBtn__']",
+                "selection": "unique",
+                "reveal_hover_selector": "video.inner-video"
+              },
+              "ensure_playing": {
+                "selector": "[class*='playerButtons_resumeBtn__']",
+                "selection": "unique",
+                "reveal_hover_selector": "video.inner-video"
+              },
+              "switch_long_video": {
+                "selector": "[class*='videolist_splitTitlePrimaryLine']:not([style*='0, 218, 90']), [data-ai-entity='数字选集列表'] [class*='episodes_item__']:not([class*='episodes_playingItem__'])",
+                "selection": "random"
+              }
+            }
+          }
+        }
+      ],
+      "actions": [
+        {
+          "type": "idle_read",
+          "weight": 72
+        },
+        {
+          "type": "mouse_move",
+          "weight": 12
+        },
+        {
+          "type": "scroll_down",
+          "weight": 8
+        },
+        {
+          "type": "page_down",
+          "weight": 4
+        },
+        {
+          "type": "back",
+          "weight": 4
+        }
+      ]
+    },
+    {
+      "id": "short_video",
+      "display_name": "Short Video",
+      "media_probe": {
+        "required": false,
+        "observe_seconds": 2.6,
+        "min_advance_seconds": 0.75
+      },
+      "weight": 18,
+      "session_min_seconds": 30,
+      "session_max_seconds": 90,
+      "targets": [
+        {
+          "name": "tiktok",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.tiktok.com/"
+          ],
+          "semantic_binding": {
+            "media_selector": "video",
+            "controls": {
+              "advance_short_video": {
+                "selector": "button[data-e2e='feed-navigation-next']",
+                "selection": "unique",
+                "identity_attribute": "data-e2e"
+              }
+            }
+          }
+        },
+        {
+          "name": "douyin",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.douyin.com/?recommend=1"
+          ],
+          "semantic_binding": {
+            "media_controls": true,
+            "controls": {
+              "advance_short_video": {
+                "selector": "[data-e2e=\"video-switch-next-arrow\"]",
+                "selection": "unique",
+                "identity_attribute": "data-e2e"
+              },
+              "ensure_video_active": {
+                "input": "seek_feed_video",
+                "max_wheels": 4
+              }
+            }
+          }
+        },
+        {
+          "name": "kuaishou",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.kuaishou.com/new-reco"
+          ],
+          "semantic_binding": {
+            "media_selector": "video.kplayer-video",
+            "controls": {
+              "advance_short_video": {
+                "input": "wheel"
+              }
+            }
+          }
+        }
+      ],
+      "actions": [
+        {
+          "type": "page_down",
+          "weight": 32
+        },
+        {
+          "type": "scroll_down",
+          "weight": 28
+        },
+        {
+          "type": "idle_read",
+          "weight": 22
+        },
+        {
+          "type": "mouse_move",
+          "weight": 10
+        },
+        {
+          "type": "back",
+          "weight": 8
+        }
+      ]
+    },
+    {
+      "id": "web_browsing",
+      "display_name": "Web Browsing",
+      "weight": 20,
+      "search_terms": [
+        "technology news",
+        "weather today",
+        "research article",
+        "travel guide"
+      ],
+      "targets": [
+        {
+          "name": "csdn",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.csdn.net/"
+          ],
+          "semantic_binding": {
+            "content_hosts": [
+              "blog.csdn.net"
+            ],
+            "feed_selector": "main",
+            "detail_selector": "#content_views",
+            "detail_path_pattern": "^/[^/]+/article/details/[0-9]+$",
+            "detail_scroll_boundary": "finish",
+            "controls": {
+              "open_feed_content": {
+                "selector": ".home-info-headlines a[href*='blog.csdn.net/'][href*='/article/details/']",
+                "selection": "random",
+                "href_path_pattern": "^/[^/]+/article/details/[0-9]+$",
+                "same_tab": true,
+                "browser_use_input": "navigate_visible_link",
+                "reveal": "scroll_up"
+              },
+              "return_to_feed": {
+                "selector": "a[href='https://www.csdn.net/']",
+                "selection": "unique",
+                "input": "registered_entry",
+                "reveal": "scroll_up"
+              }
+            },
+            "benign_popups": [
+              {
+                "id": "csdn-gift-bubble",
+                "marker_selector": ".csdn-gift-bubble-close",
+                "dismiss_selector": ".csdn-gift-bubble-close",
+                "max_occurrences": 1
+              }
+            ]
+          }
+        },
+        {
+          "name": "baidu",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.baidu.com/"
+          ],
+          "semantic_binding": {
+            "content_hosts": [
+              "mbd.baidu.com"
+            ],
+            "feed_selector": ".s-feed-list-item",
+            "feed_scroll_selector": "#head",
+            "detail_selector": "[data-testid='article']",
+            "detail_path_pattern": "^/newspage/data/landingsuper$",
+            "detail_scroll_boundary": "finish",
+            "controls": {
+              "open_feed_content": {
+                "selector": "[id^='news_']:not(#news_10074944754702153162):has([data-link*='//mbd.baidu.com/newspage/data/landingsuper']) .s-feed-title-text",
+                "selection": "random",
+                "identity_ancestor": "[id^='news_']",
+                "identity_attribute": "id",
+                "avoid_repeat": true,
+                "opens_new_tab": true,
+                "browser_use_input": "navigate_visible_link",
+                "destination_selector": "[data-link]",
+                "destination_attribute": "data-link",
+                "reveal": "scroll_down"
+              },
+              "return_to_feed": {
+                "selector": "[data-testid='article']",
+                "input": "registered_entry"
+              }
+            }
+          }
+        },
+        {
+          "name": "weibo",
+          "command": "msedge.exe",
+          "args": [
+            "https://weibo.com/"
+          ],
+          "semantic_binding": {
+            "content_hosts": [
+              "weibo.com"
+            ],
+            "detail_selector": "#app:has(main [class*='_detail_'] article)",
+            "detail_scroll_boundary": "finish",
+            "detail_path_pattern": "^/[0-9]+/[A-Za-z0-9]+$",
+            "controls": {
+              "open_feed_content": {
+                "selector": "a[class*='_time_'][href]",
+                "selection": "random",
+                "href_path_pattern": "^/[0-9]+/[A-Za-z0-9]+$",
+                "reveal": "scroll_down",
+                "browser_use_input": "navigate_visible_link"
+              },
+              "return_to_feed": {
+                "selector": "div[class*='_bar_'] div[class*='_hand_']",
+                "selection": "unique",
+                "reveal": "scroll_up"
+              }
+            }
+          }
+        },
+        {
+          "name": "xiaohongshu",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.xiaohongshu.com/explore"
+          ],
+          "semantic_binding": {
+            "detail_selector": "#noteContainer",
+            "detail_scroll_selector": ".note-scroller",
+            "detail_scroll_boundary": "finish",
+            "controls": {
+              "open_feed_content": {
+                "selector": "a.title[href*='/explore/']",
+                "selection": "random",
+                "href_path_pattern": "^/explore/[0-9a-f]{24}$",
+                "reveal": "scroll_down"
+              },
+              "return_to_feed": {
+                "selector": ".close-circle",
+                "selection": "unique",
+                "identity_attribute": "class"
+              }
+            }
+          }
+        }
+      ],
+      "actions": [
+        {
+          "type": "scroll_down",
+          "weight": 28
+        },
+        {
+          "type": "search_web",
+          "weight": 18
+        },
+        {
+          "type": "idle_read",
+          "weight": 20
+        },
+        {
+          "type": "page_down",
+          "weight": 12
+        },
+        {
+          "type": "mouse_move",
+          "weight": 12
+        },
+        {
+          "type": "back",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "reading",
+      "display_name": "Reading",
+      "weight": 12,
+      "session_min_seconds": 45,
+      "session_max_seconds": 150,
+      "targets": [
+        {
+          "name": "wikipedia_random",
+          "command": "msedge.exe",
+          "args": [
+            "https://en.wikipedia.org/wiki/Special:Random"
+          ]
+        },
+        {
+          "name": "project_gutenberg",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.gutenberg.org/ebooks/search/?sort_order=downloads"
+          ]
+        },
+        {
+          "name": "arxiv",
+          "command": "msedge.exe",
+          "args": [
+            "https://arxiv.org/list/cs/recent"
+          ]
+        },
+        {
+          "name": "local_notes",
+          "command": "notepad.exe",
+          "args": []
+        }
+      ],
+      "actions": [
+        {
+          "type": "idle_read",
+          "weight": 58
+        },
+        {
+          "type": "scroll_down",
+          "weight": 22
+        },
+        {
+          "type": "page_down",
+          "weight": 10
+        },
+        {
+          "type": "scroll_up",
+          "weight": 5
+        },
+        {
+          "type": "mouse_move",
+          "weight": 5
+        }
+      ]
+    },
+    {
+      "id": "music_audio",
+      "display_name": "Music and Audio",
+      "media_probe": {
+        "required": false,
+        "observe_seconds": 2.6,
+        "min_advance_seconds": 0.75
+      },
+      "weight": 10,
+      "session_min_seconds": 60,
+      "session_max_seconds": 180,
+      "targets": [
+        {
+          "name": "spotify",
+          "command": "msedge.exe",
+          "args": [
+            "https://open.spotify.com"
+          ],
+          "semantic_binding": {
+            "controls": {
+              "open_music_player": {
+                "selector": "button[data-testid='play-button'].e-10860-legacy-button-tertiary",
+                "selection": "random",
+                "identity_attribute": "aria-label"
+              },
+              "start_music_playback": {
+                "selector": "button[data-testid='control-button-playpause'][aria-label='播放']",
+                "selection": "unique",
+                "identity_attribute": "aria-label"
+              },
+              "ensure_paused": {
+                "selector": "button[data-testid='control-button-playpause'][aria-label='暂停']",
+                "selection": "unique",
+                "identity_attribute": "aria-label"
+              },
+              "ensure_playing": {
+                "selector": "button[data-testid='control-button-playpause'][aria-label='播放']",
+                "selection": "unique",
+                "identity_attribute": "aria-label"
+              },
+              "advance_track": {
+                "selector": "button[data-testid='control-button-skip-forward']",
+                "selection": "unique",
+                "identity_attribute": "aria-label"
+              }
+            },
+            "media_ui": {
+              "position_selector": "[data-testid='playback-position']",
+              "duration_selector": "[data-testid='playback-duration']",
+              "control_selector": "button[data-testid='control-button-playpause']",
+              "playing_selector": "button[data-testid='control-button-playpause'][aria-label='暂停']",
+              "identity_selector": "[data-testid='now-playing-widget'][role='region']",
+              "identity_attribute": "aria-label"
+            }
+          }
+        },
+        {
+          "name": "netease_music",
+          "command": "cloudmusic.exe",
+          "args": [],
+          "native_binding": {
+            "executable": "%ProgramFiles%\\NetEase\\CloudMusic\\cloudmusic.exe",
+            "playback_control_id": "btn_pc_minibar_play",
+            "playing_name": "pause",
+            "paused_name": "play",
+            "next_name": "next",
+            "entry_text": "文本 推荐"
+          },
+          "semantic_binding": {
+            "player_embedded": true,
+            "controls": {
+              "ensure_paused": {
+                "native_control": "playback"
+              },
+              "ensure_playing": {
+                "native_control": "playback"
+              },
+              "advance_track": {
+                "native_control": "next"
+              },
+              "open_music_player": {
+                "native_control": "player"
+              },
+              "start_music_playback": {
+                "native_control": "playback"
+              }
+            }
+          }
+        },
+        {
+          "name": "qq_music",
+          "command": "msedge.exe",
+          "args": [
+            "https://y.qq.com/n/ryqq_v2/player"
+          ],
+          "semantic_binding": {
+            "player_embedded": true,
+            "controls": {
+              "open_music_player": {
+                "selector": "a.mod_btn.js_all_play",
+                "selection": "random"
+              },
+              "ensure_paused": {
+                "selector": ".btn_big_play.btn_big_play--pause",
+                "selection": "unique"
+              },
+              "ensure_playing": {
+                "selector": ".btn_big_play:not(.btn_big_play--pause)",
+                "selection": "unique"
+              },
+              "advance_track": {
+                "selector": ".btn_big_next",
+                "selection": "unique"
+              }
+            },
+            "media_ui": {
+              "clock_selector": ".player_music__time",
+              "elapsed_seconds_carry": true,
+              "control_selector": ".btn_big_play",
+              "playing_selector": ".btn_big_play--pause",
+              "identity_selector": ".player_music a[href*='/songDetail/']"
+            },
+            "benign_popups": [
+              {
+                "id": "qq-music-autoplay",
+                "marker_selector": ".yqq-dialog-wrap[role='dialog']",
+                "marker_text_contains": "由于您的浏览器设置，音乐无法自动播放，请手动点击播放。",
+                "dismiss_selector": ".yqq-dialog-wrap button.upload_btns__item.mod_btn_green.mod_btn",
+                "dismiss_text": "开始播放",
+                "max_occurrences": 1
+              }
+            ]
+          }
+        }
+      ],
+      "actions": [
+        {
+          "type": "idle_read",
+          "weight": 74
+        },
+        {
+          "type": "mouse_move",
+          "weight": 12
+        },
+        {
+          "type": "scroll_down",
+          "weight": 8
+        },
+        {
+          "type": "back",
+          "weight": 6
+        }
+      ]
+    },
+    {
+      "id": "maps_navigation",
+      "display_name": "Maps and Navigation",
+      "weight": 8,
+      "search_terms": [
+        "coffee near me",
+        "train station",
+        "restaurant",
+        "hotel"
+      ],
+      "targets": [
+        {
+          "name": "google_maps",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.google.com/maps"
+          ]
+        },
+        {
+          "name": "bing_maps",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.bing.com/maps"
+          ]
+        },
+        {
+          "name": "baidu_maps",
+          "command": "msedge.exe",
+          "args": [
+            "https://map.baidu.com"
+          ]
+        },
+        {
+          "name": "openstreetmap",
+          "command": "msedge.exe",
+          "args": [
+            "https://www.openstreetmap.org"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "search_web",
+          "weight": 24
+        },
+        {
+          "type": "scroll_down",
+          "weight": 18
+        },
+        {
+          "type": "scroll_up",
+          "weight": 10
+        },
+        {
+          "type": "mouse_move",
+          "weight": 20
+        },
+        {
+          "type": "idle_read",
+          "weight": 18
+        },
+        {
+          "type": "back",
+          "weight": 10
+        }
+      ]
+    }
+  ]
+}

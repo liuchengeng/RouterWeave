@@ -1,0 +1,214 @@
+{
+  "schema_version": "iot-routine-v1",
+  "plan_id": "xiaomi-desktop-circulation-fan-routine",
+  "duration_seconds": 345600,
+  "max_lateness_seconds": 900,
+  "tick_seconds": 5,
+  "health_seconds": 30,
+  "share_controller": true,
+  "controls": {
+    "power": {
+      "plan_path": "configs/plans/bindings/xiaomi-desktop-circulation-fan-01-power.json",
+      "device_id": "xiaomi-desktop-circulation-fan-01"
+    },
+    "fan": {
+      "plan_path": "configs/plans/bindings/xiaomi-desktop-circulation-fan-01-fan.json",
+      "device_id": "xiaomi-desktop-circulation-fan-01"
+    }
+  },
+  "initial_states": [],
+  "actions": {
+    "power_on": {
+      "control": "power",
+      "target": "on"
+    },
+    "power_off": {
+      "control": "power",
+      "target": "off"
+    },
+    "fan_speed_up": {
+      "control": "fan",
+      "relative": 1,
+      "state_order": [
+        "g1",
+        "g2"
+      ],
+      "requires": [
+        {
+          "control": "power",
+          "state": "on"
+        }
+      ]
+    },
+    "fan_speed_down": {
+      "control": "fan",
+      "relative": -1,
+      "state_order": [
+        "g1",
+        "g2"
+      ],
+      "requires": [
+        {
+          "control": "power",
+          "state": "on"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "day": 1,
+      "time": "08:30",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "08:35",
+      "actions": [
+        "fan_speed_down"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "11:20",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "14:20",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "19:05",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "19:10",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 1,
+      "time": "23:15",
+      "actions": [
+        "fan_speed_down"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "08:20",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "13:40",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "13:45",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "17:10",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "20:15",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "20:20",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 2,
+      "time": "23:25",
+      "actions": [
+        "fan_speed_down"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "08:10",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "12:30",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "12:35",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "16:00",
+      "actions": [
+        "fan_speed_down"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "17:30",
+      "actions": [
+        "power_off"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "20:05",
+      "actions": [
+        "power_on"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "20:10",
+      "actions": [
+        "fan_speed_up"
+      ]
+    },
+    {
+      "day": 3,
+      "time": "23:05",
+      "actions": [
+        "fan_speed_down"
+      ]
+    }
+  ]
+}
