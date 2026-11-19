@@ -1,29 +1,20 @@
 # RouterWeave
 
-RouterWeave uses router-visible network traffic to infer sustained application activity and short IoT operations. These predictions support two case studies, Screen Time and appliance energy estimation.
+RouterWeave reconstructs activity histories across personal and smart-home devices from encrypted network traffic observed at a home router. It uses packet timing, size, and direction together with service identifiers available from DNS and TLS handshakes.
 
-## Run from the repository root
+The recognition method depends on the time scale of the activity. On Android, iOS, and Windows, applications such as video players can remain active across several connections and through quiet buffering periods. RouterWeave aggregates traffic across a device’s connections in 30-second windows and estimates the activity class every five seconds. A smart-home operation, such as switching a plug on, may produce only a few packets interleaved with background traffic. For each known IoT device, a localizer selects the packets associated with a candidate operation, and a shared classifier assigns an operation label.
 
-With Python 3.12, run either of these commands using only the standard library.
+## Source code
 
-```sh
-python -m routerweave traffic routerweave/traffic/examples/dns_ttl.pcap --device sensor --ip 192.0.2.10 --summary
-python -m routerweave evaluate comparison
-```
-
-The first command extracts six device packets from a synthetic eight-frame capture. The second recomputes the recognition comparisons from the included experiment records. Run `python -m routerweave --help` to list commands. File arguments are relative to the current directory. Each module guide gives its own dependencies and commands to run from that module's directory.
-
-## Repository layout
-
-| Module | Inputs and outputs |
+| Component | Role |
 | --- | --- |
-| [Collection and ground truth](routerweave/collection/README.md) | Captures traffic and synchronized activity evidence on Android, iOS, Windows and smart-home devices. Includes hardware setup and an offline event example. |
-| [Traffic processing](routerweave/traffic/README.md) | Reads a classic PCAP and device addresses. Emits device-relative packets or flows with observable service metadata. |
-| [Application activity recognition](routerweave/recognition/activity/README.md) | Prepares labelled windows from recordings, fits a six-class model and predicts activity every five seconds. |
-| [IoT operation recognition](routerweave/recognition/iot/README.md) | Reads normalized transport units, locates candidate operations and classifies them for a known device. Includes the study classifier and a smart-light inference example. |
-| [Case studies](routerweave/applications/README.md) | Converts timed predictions into Screen Time intervals or integrates an appliance power profile over inferred states. |
-| [Evaluation](routerweave/evaluation/README.md) | Recomputes comparisons, ablations, latency and resource metrics from frozen records. Includes the native router replay programs. |
+| [Data collection](routerweave/collection/README.md) | Router traffic capture and synchronized ground truth for application use and device operations |
+| [Traffic processing](routerweave/traffic/README.md) | Device attribution, connection tracking, and extraction of service metadata |
+| [Application activity recognition](routerweave/recognition/activity/README.md) | Window construction, recording-level data splits, model training, and inference |
+| [IoT operation recognition](routerweave/recognition/iot/README.md) | Device-specific operation localization and classification of candidate packet groups |
+| [Case studies](routerweave/applications/README.md) | Screen Time estimation from activity intervals and appliance energy estimation from state transitions and power profiles |
+| [Evaluation](routerweave/evaluation/README.md) | Baseline comparisons, ablations, and router latency, memory, and concurrency measurements |
 
-## Scope of reproduction
+## Experimental data
 
-The collection plans describe intended acquisitions. The IoT model was trained on the subset available at fitting time. Repeating the original fits requires the original recordings and splits. The included examples exercise the documented interfaces, and the evaluation tables support rescoring the recorded experiments. In the appliance energy study, day four used replayed data.
+The IoT classifier was trained on the recordings available at the time of fitting. The collection plans also cover acquisitions outside that training set. The evaluation module contains the predictions and measurement records used to recompute the reported comparisons. Day four of the appliance energy evaluation used replayed data.
