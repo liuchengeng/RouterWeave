@@ -1,12 +1,12 @@
 # RouterWeave
 
-RouterWeave reconstructs application activity and smart-home operations from encrypted traffic observed at a home router. Its two case studies use these activity histories to estimate cross-platform Screen Time and appliance energy consumption.
+RouterWeave identifies periods of application use on phones and PCs and individual operations on smart-home devices from encrypted traffic captured at a home router. The router observes packet headers and, when available, service names from DNS and TLS handshakes. Device logs and controller events provide the reference labels for the experiments.
 
-## Architecture
+## Recognition methods
 
-- **Traffic observation.** Router captures provide packet timing, size, direction, and connection information. DNS records and TLS handshakes supply service identifiers when available.
-- **Activity recognition.** A window-based model classifies sustained application activity across a device’s connections. For IoT operations, a device-specific localizer selects the packets associated with an event, and a shared classifier assigns its label.
-- **Applications.** Screen Time aggregates activity predictions into intervals. Appliance energy estimation combines the time spent in each inferred state with its power profile.
+For Android, iOS, and Windows, RouterWeave classifies 30 seconds of traffic at a time across all observed connections from one device. The model combines packet timing, sizes, and directions with the available service metadata. It produces an activity estimate every five seconds. The Screen Time study uses successive estimates to recover activity intervals and measure their duration.
+
+A single IoT operation can span several exchanges interleaved with background traffic. A localizer trained for each device estimates the operation’s boundaries and selects the packets that belong to it. A classifier shared across devices assigns the operation label. The appliance energy study uses directional events such as power-on and power-off to reconstruct time in each state and estimate consumption in watt-hours.
 
 ## Repository structure
 
@@ -17,4 +17,4 @@ RouterWeave reconstructs application activity and smart-home operations from enc
 - [Screen Time and appliance energy estimation](routerweave/applications/README.md)
 - [Comparisons, ablations, and router benchmarks](routerweave/evaluation/README.md)
 
-The IoT classifier was trained on the available subset of planned recordings. Day four of the energy evaluation used replayed data.
+The IoT classifier was trained on the recordings available at fitting time, which cover part of the collection plan. The fourth day of the appliance energy evaluation used replayed data.
